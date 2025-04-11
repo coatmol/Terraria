@@ -1,23 +1,30 @@
 ﻿using SFML.Graphics;
 using SFML.System;
 using SFML.Window;
-using System.Numerics;
 using Terraria.physics;
 using Terraria.utils;
+using Terraria.world;
 
 namespace Terraria.game
 {
     class PlayerCharacter : RigidBody
     {
-        private Vector2f contactPoint, contactNormal;
-        private float contactTime;
-        public bool isGrounded = false;
+        private float dt;
+        public bool isGrounded = true;
         private bool isFlipped = false;
-        private Vector2f Friction = new Vector2f(0.5f, 1);
+        private readonly WorldGenerator world;
 
-        public PlayerCharacter(Vector2f pos) : base(pos, new Vector2f(16, 24), new Vector2f())
+        private const float MAX_SPEED = 1.5f;
+        private const float ACCELERATION = 5.0f;
+        private const float DECELERATION = 22.0f;
+        private const float GRAVITY = 9.8f;
+        private const float TERMINAL_VELOCITY = 15.0f; // Max fall speed
+        private const float JUMP_FORCE = -3.0f;
+
+        public PlayerCharacter(Vector2f pos, WorldGenerator world) : base(pos, new Vector2f(16, 24), new Vector2f())
         {
-            this.Texture = new SFML.Graphics.Texture("assets/sprites/character.png");
+            this.Texture = new Texture("assets/sprites/character.png");
+            this.world = world;
 
             EventManager.SubcribeToEvent(EventManager.EventType.KeyPressed, (e) =>
             {
@@ -25,16 +32,11 @@ namespace Terraria.game
                 {
                     if (keyEvent.Code == Keyboard.Key.Space && isGrounded)
                     {
-                        Move(new Vector2f(0, -5000), 0.025f);
+                        Velocity.Y = JUMP_FORCE;
                         isGrounded = false;
                     }
                 }
             });
-        }
-
-        public void Move(Vector2f direction, float dt)
-        {
-            Velocity += direction * dt;
         }
 
         private void FlipTexture()
@@ -48,59 +50,89 @@ namespace Terraria.game
             isFlipped = !isFlipped;
         }
 
+        private void Simulate(List<Collider> colliders)
+        {
+            Collider playerRect = new Collider(Position, Size);
+            Vector2f remainder = new();
+
+            remainder += Velocity;
+            int moveX = (int)Math.Round(remainder.X);
+            if(moveX != 0)
+            {
+                remainder.X -= moveX;
+                int moveSign = Utils.Sign(moveX);
+
+                while (moveX != 0)
+                {
+                    playerRect = new Collider(playerRect.Position + new Vector2f(moveSign, 0), (Vector2f)playerRect.Size);
+                    foreach (var collider in colliders)
+                    {
+                        if (playerRect.CheckCollisionAgainstRect(collider))
+                        {
+                            Velocity.X = 0;
+                            goto ExitX;
+                        }
+                    }
+
+                    Position += new Vector2f(moveSign, 0);
+                    moveX -= moveSign;
+                }
+            }
+            ExitX: { }
+
+            int moveY = (int)Math.Round(remainder.Y);
+            if (moveY != 0)
+            {
+                remainder.Y -= moveY;
+                int moveSign = Utils.Sign(moveY);
+
+                while (moveY != 0)
+                {
+                    playerRect = new Collider(playerRect.Position + new Vector2f(0, moveSign), (Vector2f)playerRect.Size);
+                    foreach (var collider in colliders)
+                    {
+                        if (playerRect.CheckCollisionAgainstRect(collider))
+                        {
+                            if(Velocity.Y > 0)
+                            {
+                                Velocity.Y = 0;
+                                isGrounded = true;
+                            }
+                            goto ExitY;
+                        }
+                    }
+
+                    Position += new Vector2f(0, moveSign);
+                    moveY -= moveSign;
+                }
+            }
+            ExitY: { }
+        }
+
+
         public void Update(float dt, List<Collider> colliders)
         {
+            this.dt = dt;
             if (Keyboard.IsKeyPressed(Keyboard.Key.A))
             {
-                Move(new Vector2f(-15000, 0), dt);
+                Velocity.X = Utils.Approach(Velocity.X, -MAX_SPEED, ACCELERATION * dt);
                 if (!isFlipped)
                     FlipTexture();
             }
             if (Keyboard.IsKeyPressed(Keyboard.Key.D))
             {
-                Move(new Vector2f(15000, 0), dt);
+                Velocity.X = Utils.Approach(Velocity.X, MAX_SPEED, ACCELERATION * dt);
                 if (isFlipped)
                     FlipTexture();
             }
-
-            bool groundCheck = false;
-
-            Velocity += new Vector2f(0, 100) * dt * (isGrounded ? 0 : 1);
-            Velocity = Utils.MultiplyVectors(Velocity, Friction);
-
-            List<(int id, float t)> z = new List<(int, float)>();
-            for (int i = 0; i < colliders.Count; i++)
+            if (!Keyboard.IsKeyPressed(Keyboard.Key.A) && !Keyboard.IsKeyPressed(Keyboard.Key.D))
             {
-                Collider collider = colliders[i];
-                if (CheckCollisionAgainstRect(collider))
-                {
-                    groundCheck = true;
-                    if (!isGrounded)
-                    {
-                        Velocity.Y = 0;
-                    }
-                }
-                if (DynamicallyCheckCollisionAgainstRect(collider, ref contactPoint, ref contactNormal, ref contactTime, dt))
-                {
-                    z.Add((i, contactTime));
-                }
+                if(isGrounded)
+                    Velocity.X = Utils.Approach(Velocity.X, 0, DECELERATION * dt);
             }
-            z.Sort((a, b) => a.t.CompareTo(b.t));
-            foreach(var j in z)
-            {
-                if(DynamicallyCheckCollisionAgainstRect(colliders[j.id], ref contactPoint, ref contactNormal, ref contactTime, dt))
-                {
-                    if (contactNormal.Y == -1)
-                        groundCheck = true;
-                    if (contactTime < 0.0f)
-                        Console.WriteLine("Inside collider");
-                    else
-                        Velocity += Utils.MultiplyVectors(contactNormal, new Vector2f(Math.Abs(Velocity.X), Math.Abs(Velocity.Y))) * (1 - contactTime);
-                }
-            }
+            Velocity.Y = Utils.Approach(Velocity.Y, TERMINAL_VELOCITY, GRAVITY * dt);
 
-            isGrounded = groundCheck;
-            Position += Velocity * dt;
+            Simulate(colliders);
         }
     }
 }

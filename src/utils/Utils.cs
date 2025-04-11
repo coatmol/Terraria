@@ -51,6 +51,23 @@ namespace Terraria.utils
             return a * (1 - t) + b * t;
         }
 
+        public static float Approach(float current, float target, float increase)
+        {
+            if (current < target)
+                return Math.Min(current + increase, target);
+            return Math.Max(current - increase, target);
+        }
+
+        public static int Sign(int x)
+        {
+            return (x >= 0) ? 1 : -1;
+        }
+
+        public static float Sign(float x)
+        {
+            return (x >= 0.0f) ? 1 : -1;
+        }
+
         public static float LerpF(float a, float b, float t)
         {
             return a * (1 - t) + b * t;

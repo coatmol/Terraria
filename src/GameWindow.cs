@@ -37,7 +37,7 @@ namespace Terraria
 
         private Chunk GetNextClosestChunk(Vector2f playerPos, List<Chunk> chunks)
         {
-            List<Chunk> sortedChunks = new List<Chunk>(chunks);
+            List<Chunk> sortedChunks = new(chunks);
 
             sortedChunks.Sort((a, b) =>
             {
@@ -63,21 +63,31 @@ namespace Terraria
         {
             int secondsSinceEpoch = (int)(DateTime.UtcNow - new DateTime(1970, 1, 1)).TotalSeconds;
 
-            PlayerCharacter player = new(new Vector2f(Constants.CHUNK_SIZE.X, Constants.CHUNK_SIZE.Y / 2.2f * 16));
-
-            WorldGenerator world = new(0.02f, 20, secondsSinceEpoch);
             Texture tileset = new Texture("assets/sprites/texture_atlas.png");
-            List<Chunk> chunks = new List<Chunk>();
-            List<VertexArray> terrainMeshes = new List<VertexArray>();
+            WorldGenerator world = new(tileset, 0.02f, 20, secondsSinceEpoch);
+            List<Chunk> chunks = [];
+            List<VertexArray> terrainMeshes = [];
             for (int x = 0; x < 50; x++)
             {
                 chunks.Add(world.GenerateCaves(world.GenerateNoise(x * Constants.CHUNK_SIZE.X), x * Constants.CHUNK_SIZE.X));
             }
             foreach (var chunk in chunks)
             {
-                terrainMeshes.Insert(chunk.ID, world.GenerateTerrain(chunk, tileset, chunk.ChunkBounds.Left));
+                terrainMeshes.Insert(chunk.ID, world.GenerateTerrain(chunk, chunk.ChunkBounds.Left));
             }
             RenderStates states = new(tileset);
+
+            int SpawnPos = Constants.CHUNK_SIZE.X * Constants.BLOCK_SIZE * 25;
+            PlayerCharacter player = new(new Vector2f(SpawnPos, world.GetHeight(SpawnPos) * Constants.BLOCK_SIZE - 24), world);
+
+            EventManager.SubcribeToEvent(EventManager.EventType.TerrainUpdated, (e) =>
+            {
+                if (e.Data is int id)
+                {
+                    Console.WriteLine($"Chunk {id} updated");
+                    terrainMeshes[id] = world.Chunks[id].Vertices;
+                }
+            });
 
             Clock clock = new();
             Stopwatch stopwatch = new Stopwatch();
@@ -88,7 +98,7 @@ namespace Terraria
 
             Vector2f MousePos = new();
 
-            Chunk currentChunk = chunks[2];
+            Chunk currentChunk = chunks.First();
             List<Collider> currentChunkColliders = new List<Collider>();
 
             bool DebugMode = false;
@@ -126,6 +136,9 @@ namespace Terraria
                 }
 
                 foreach (var chunk in chunks)
+                    chunk.Update(world);
+
+                foreach (var chunk in chunks)
                 {
                     if (chunk.ChunkBounds.Contains((Vector2i)player.Position))
                     {
@@ -145,6 +158,10 @@ namespace Terraria
                     player.Velocity = new Vector2f();
                 if (Mouse.IsButtonPressed(Mouse.Button.Left) && DebugMode && Freecam)
                     player.Position = MousePos - player.Size / 2;
+                else if (Mouse.IsButtonPressed(Mouse.Button.Left))
+                    world.RemoveBlock(MousePos);
+                if (Mouse.IsButtonPressed(Mouse.Button.Right))
+                    world.PlaceBlock(MousePos);
 
                 player.Update(deltaTime, currentChunkColliders);
 

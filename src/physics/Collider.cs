@@ -34,6 +34,12 @@ namespace Terraria.physics
                     rect.Position.Y < Position.Y + Size.Y && rect.Position.Y + rect.Size.Y > Position.Y;
         }
 
+        private bool CheckCollisionAgainstRect(IntRect rect)
+        {
+            return rect.Position.X < Position.X + Size.X && rect.Position.X + rect.Size.X > Position.X &&
+                    rect.Position.Y < Position.Y + Size.Y && rect.Position.Y + rect.Size.Y > Position.Y;
+        }
+
         public bool CheckCollisionAgainstRect(RectangleShape rect)
         {
             return rect.Position.X < Position.X + Size.X && rect.Position.X + rect.Size.X > Position.X &&

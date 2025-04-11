@@ -20,6 +20,9 @@
             MouseMoved,
             MouseEntered,
             MouseLeft,
+
+            // Game Events
+            TerrainUpdated,
         }
 
         public class Event

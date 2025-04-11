@@ -5,7 +5,7 @@ using Terraria.utils;
 
 namespace Terraria.world
 {
-    class WorldGenerator
+    public class WorldGenerator
     {
         public readonly int Width = Constants.CHUNK_SIZE.X;
         public readonly int Height = Constants.CHUNK_SIZE.Y;
@@ -15,8 +15,9 @@ namespace Terraria.world
         private FastNoiseLite CaveNoise;
         public readonly int Seed;
         public readonly List<Chunk> Chunks = new List<Chunk>();
+        private Texture TileSet;
 
-        public WorldGenerator(float frequency, float amplitude, int seed)
+        public WorldGenerator(Texture tileset, float frequency, float amplitude, int seed)
         {
             this.Frequency = frequency;
             this.Amplitude = amplitude;
@@ -31,6 +32,17 @@ namespace Terraria.world
             CaveNoise.SetFrequency(frequency);
             CaveNoise.SetFractalType(FastNoiseLite.FractalType.FBm);
             CaveNoise.SetFractalOctaves(3);
+
+            this.TileSet = tileset;
+        }
+
+        public int GetHeight(int x, int offset = 0)
+        {
+            float noiseValue = MathF.Pow(WorldNoise.GetNoise(x + offset, 0) * 1.4f, 4);
+            float ridge = -1 * MathF.Abs(noiseValue);
+            float normalized = (ridge + 1) / 2.0f;
+            int terrainHeight = (int)(normalized * Amplitude) + (Height / 2 - (int)(Amplitude / 2));
+            return terrainHeight;
         }
 
         public Chunk GenerateNoise(int offset=0)
@@ -39,11 +51,7 @@ namespace Terraria.world
 
             for (int x = 0; x < Width; x++)
             {
-                float noiseValue = MathF.Pow(WorldNoise.GetNoise(x + offset, 0) * 1.4f, 4);
-                float ridge = -1 * MathF.Abs(noiseValue);
-
-                float normalized = (ridge + 1) / 2.0f;
-                int terrainHeight = (int)(normalized * Amplitude) + (Height / 2 - (int)(Amplitude / 2));
+                int terrainHeight = GetHeight(x, offset);
 
                 for (int y = 0; y < Height; y++)
                 {
@@ -96,11 +104,11 @@ namespace Terraria.world
             return chunk;
         }
 
-        public VertexArray GenerateTerrain(Chunk terrain, Texture tileSet, int offset = 0)
+        public VertexArray GenerateTerrain(Chunk terrain, int offset = 0)
         {
             VertexArray vertices = new(PrimitiveType.Quads);
             int tileSize = Constants.BLOCK_SIZE;
-            int tileSetWidth = (int)(tileSet.Size.X / tileSize);
+            int tileSetWidth = (int)(TileSet.Size.X / tileSize);
 
             for (int x = 0; x < Width; x++)
             {
@@ -141,6 +149,33 @@ namespace Terraria.world
             terrain.Vertices = vertices;
             return vertices;
         }
+
+        public Chunk? GetChunkFromPosition(Vector2f pos)
+        {
+            int chunkId = (int)Math.Floor(pos.X / Constants.BLOCK_SIZE / Constants.CHUNK_SIZE.X);
+            if (chunkId < 0 || chunkId >= Chunks.Count)
+                return null;
+            Chunk chunk = Chunks[chunkId];
+            if (chunk == null)
+                return null;
+            return chunk;
+        }
+
+        public void PlaceBlock(Vector2f pos)
+        {
+            Chunk? chunk = GetChunkFromPosition(pos);
+            if (chunk == null)
+                return;
+            chunk.PlaceBlock(pos);
+        }
+
+        public void RemoveBlock(Vector2f pos)
+        {
+            Chunk? chunk = GetChunkFromPosition(pos);
+            if (chunk == null)
+                return;
+            chunk.RemoveBlock(pos);
+        }
     }
 
     public class Chunk
@@ -149,11 +184,13 @@ namespace Terraria.world
         public VertexArray Vertices;
         public readonly IntRect ChunkBounds;
         public int ID;
+        private bool IsDirty = false;
 
         public Chunk(int[,] terrainMap, IntRect chunkBounds)
         {
             TerrainMap = terrainMap;
             ChunkBounds = chunkBounds;
+            Vertices = new VertexArray(PrimitiveType.Quads);
         }
 
         public bool IsInView(View cameraView)
@@ -175,6 +212,45 @@ namespace Terraria.world
         public bool IsCurrentChunk(IntRect playerBB)
         {
             return ChunkBounds.Intersects(playerBB);
+        }
+
+        public void PlaceBlock(Vector2f pos)
+        {
+            int x = (int)(pos.X - ChunkBounds.Left) / Constants.BLOCK_SIZE;
+            int y = (int)(pos.Y - ChunkBounds.Top) / Constants.BLOCK_SIZE;
+
+            if (x < 0 || x >= TerrainMap.GetLength(0) || y < 0 || y >= TerrainMap.GetLength(1))
+                return;
+            if (TerrainMap[x, y] != -1)
+                return;
+
+            TerrainMap[x, y] = 2;
+            IsDirty = true;
+        }
+
+        public void RemoveBlock(Vector2f pos)
+        {
+            int x = (int)(pos.X - ChunkBounds.Left) / Constants.BLOCK_SIZE;
+            int y = (int)(pos.Y - ChunkBounds.Top) / Constants.BLOCK_SIZE;
+
+            if (x < 0 || x >= TerrainMap.GetLength(0) || y < 0 || y >= TerrainMap.GetLength(1))
+                return;
+            if (TerrainMap[x, y] == -1)
+                return;
+
+            TerrainMap[x, y] = -1;
+            IsDirty = true;
+        }
+
+        public void Update(WorldGenerator world)
+        {
+            if(!IsDirty)
+                return;
+
+            world.GenerateTerrain(this, ChunkBounds.Left);
+            EventManager.CallEvent(EventManager.EventType.TerrainUpdated, ID);
+
+            IsDirty = false;
         }
 
         public List<IntRect> GetBlockRects()

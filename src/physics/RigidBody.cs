@@ -15,15 +15,15 @@ namespace Terraria.physics
 
         public bool DynamicallyCheckCollisionAgainstRect(RectangleShape target, ref Vector2f contactPoint, ref Vector2f contactNormal, ref float contactTime, float dt)
         {
-            if (Velocity.X == 0.0f && Velocity.Y == 0.0f)
+            if (Math.Abs(Velocity.X) <= 0.01f && Math.Abs(Velocity.Y) <= 0.01f)
                 return false;
 
-            RectangleShape expandedTarget = new(target.Size + Size);
+            RectangleShape expandedTarget = new(target.Size + Size / 2);
             expandedTarget.Position = target.Position - Size / 2;
 
             Vector2f origin = Position + Size / 2;
 
-            if (CheckCollisionAgainstRay(origin, Velocity * dt * ((Size.X + Size.Y) /4), expandedTarget, ref contactPoint, ref contactNormal, ref contactTime))
+            if (CheckCollisionAgainstRay(origin, Velocity * dt * ((Size.X + Size.Y) /8), expandedTarget, ref contactPoint, ref contactNormal, ref contactTime))
                 return contactTime < 1.0f;
             else
                 return false;
