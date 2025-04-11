@@ -91,6 +91,7 @@ namespace Terraria
             List<Collider> currentChunkColliders = new List<Collider>();
 
             bool DebugMode = false;
+            bool Freecam = false;
 
             EventManager.SubcribeToEvent(EventManager.EventType.KeyPressed, (e) =>
             {
@@ -100,6 +101,10 @@ namespace Terraria
                     {
                         DebugMode = !DebugMode;
                         Console.WriteLine($"Debug mode toggled to {DebugMode}");
+                    }else if(keyEvent.Code == Keyboard.Key.P)
+                    {
+                        Freecam = !Freecam;
+                        Console.WriteLine($"Freecam toggled to {Freecam}");
                     }
                 }
             });
@@ -108,9 +113,16 @@ namespace Terraria
             {
                 float deltaTime = clock.Restart().AsSeconds();
                 MousePos = SfmlWindow.MapPixelToCoords(Mouse.GetPosition(SfmlWindow), CameraView);
-                Vector2f desiredCamPos = player.Position + player.Size / 2;
-                Vector2f smoothedCamPos = Utils.LerpVector(CameraView.Center, desiredCamPos, 0.125f);
-                CameraView.Center = smoothedCamPos;
+                if(DebugMode && Freecam)
+                {
+                    CameraView.Center += (MousePos - CameraView.Center) * deltaTime;
+                }
+                else
+                {
+                    Vector2f desiredCamPos = player.Position + player.Size / 2;
+                    Vector2f smoothedCamPos = Utils.LerpVector(CameraView.Center, desiredCamPos, 0.125f);
+                    CameraView.Center = smoothedCamPos;
+                }
 
                 foreach (var chunk in chunks)
                 {
