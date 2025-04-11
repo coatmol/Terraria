@@ -48,8 +48,13 @@ namespace Terraria.game
             foreach(var j in z)
             {
                 if(DynamicallyCheckCollisionAgainstRect(colliders[j.id], ref contactPoint, ref contactNormal, ref contactTime, dt))
-                { 
-                    Velocity += Utils.MultiplyVectors(contactNormal, new Vector2f(Math.Abs(Velocity.X), Math.Abs(Velocity.Y))) * (1 - contactTime);
+                {
+                    if (contactNormal.Y == -1)
+                        groundCheck = true;
+                    if (contactTime < 0.0f)
+                        Console.WriteLine("Inside collider");
+                    else
+                        Velocity += Utils.MultiplyVectors(contactNormal, new Vector2f(Math.Abs(Velocity.X), Math.Abs(Velocity.Y))) * (1 - contactTime);
                 }
             }
 

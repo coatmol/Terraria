@@ -1,5 +1,4 @@
-﻿
-namespace Terraria
+﻿namespace Terraria
 {
     public static class EventManager
     {

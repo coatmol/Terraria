@@ -29,6 +29,7 @@ namespace Terraria
             Renderer.RegisterSprite(new Sprite(new Texture("assets/sprites/cat.jpg")));
 
             this.Font = new("assets/fonts/times new roman.ttf");
+            Utils.mainWindow = this;
 
             RegisterEvents();
             Update();
@@ -107,7 +108,7 @@ namespace Terraria
             {
                 float deltaTime = clock.Restart().AsSeconds();
                 MousePos = SfmlWindow.MapPixelToCoords(Mouse.GetPosition(SfmlWindow), CameraView);
-                Vector2f desiredCamPos = player.Position;
+                Vector2f desiredCamPos = player.Position + player.Size / 2;
                 Vector2f smoothedCamPos = Utils.LerpVector(CameraView.Center, desiredCamPos, 0.125f);
                 CameraView.Center = smoothedCamPos;
 
@@ -126,8 +127,8 @@ namespace Terraria
                     player.Move(new Vector2f(-5000 * speedMul, 0), deltaTime);
                 if (Keyboard.IsKeyPressed(Keyboard.Key.D))
                     player.Move(new Vector2f(5000 * speedMul, 0), deltaTime);
-                if (Keyboard.IsKeyPressed(Keyboard.Key.W))
-                    player.Move(new Vector2f(0, -500 * speedMul), deltaTime);
+                if (Keyboard.IsKeyPressed(Keyboard.Key.W) && player.isGrounded)
+                    player.Move(new Vector2f(0, -5000), 0.025f);
                 if (Keyboard.IsKeyPressed(Keyboard.Key.E))
                     CameraView.Zoom(1.05f);
                 if (Keyboard.IsKeyPressed(Keyboard.Key.Q))
@@ -167,7 +168,7 @@ namespace Terraria
 
                 if(DebugMode)
                 {
-                    LineShape playerLookVector = new LineShape(player.Position + player.Size / 2, (player.Position + player.Size / 2) + player.Velocity, Color.Cyan);
+                    LineShape playerLookVector = new LineShape(player.Position + player.Size / 2, (player.Position + player.Size / 2) + player.Velocity, player.isGrounded ? Color.Blue : Color.Cyan);
                     LineShape playerRayDir = new LineShape(player.Position + player.Size / 2, (player.Position + player.Size / 2) + player.Velocity * deltaTime * 16, Color.Magenta);
                     SfmlWindow.Draw(playerLookVector.GetVertices(), PrimitiveType.Lines);
                     SfmlWindow.Draw(playerRayDir.GetVertices(), PrimitiveType.Lines);
