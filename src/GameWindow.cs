@@ -84,7 +84,6 @@ namespace Terraria
             {
                 if (e.Data is int id)
                 {
-                    Console.WriteLine($"Chunk {id} updated");
                     terrainMeshes[id] = world.Chunks[id].Vertices;
                 }
             });

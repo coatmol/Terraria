@@ -1,5 +1,6 @@
 ﻿using SFML.Graphics;
 using SFML.System;
+using Terraria.game;
 using Terraria.physics;
 using Terraria.utils;
 
@@ -11,11 +12,11 @@ namespace Terraria.world
         public readonly int Height = Constants.CHUNK_SIZE.Y;
         public readonly float Frequency;
         public readonly float Amplitude;
-        private FastNoiseLite WorldNoise;
-        private FastNoiseLite CaveNoise;
+        private readonly FastNoiseLite WorldNoise;
+        private readonly FastNoiseLite CaveNoise;
         public readonly int Seed;
         public readonly List<Chunk> Chunks = new List<Chunk>();
-        private Texture TileSet;
+        private readonly Texture TileSet;
 
         public WorldGenerator(Texture tileset, float frequency, float amplitude, int seed)
         {
@@ -47,7 +48,7 @@ namespace Terraria.world
 
         public Chunk GenerateNoise(int offset=0)
         {
-            int[,] terrain = new int[Width, Height];
+            Block[,] terrain = new Block[Width, Height];
 
             for (int x = 0; x < Width; x++)
             {
@@ -57,16 +58,16 @@ namespace Terraria.world
                 {
                     if (y < terrainHeight)
                     {
-                        terrain[x, y] = -1;
+                        terrain[x, y] = Blocks.GetBlock("Air");
                     } else if (y == terrainHeight)
                     {
-                        terrain[x, y] = 0;
+                        terrain[x, y] = Blocks.GetBlock("Grass");
                     } else if(y < terrainHeight + 5)
                     {
-                        terrain[x, y] = 1;
+                        terrain[x, y] = Blocks.GetBlock("Dirt");
                     } else
                     {
-                        terrain[x, y] = 2;
+                        terrain[x, y] = Blocks.GetBlock("Stone");
                     }
                 }
             }
@@ -79,15 +80,15 @@ namespace Terraria.world
 
         public Chunk GenerateCaves(Chunk chunk, int offset = 0)
         {
-            int[,] newTerrain = new int[Width, Height];
+            Block[,] newTerrain = new Block[Width, Height];
 
             for(int x = 0; x < Width; x++)
             {
                 for(int y = 0; y < Height; y++)
                 {
-                    if (chunk.TerrainMap[x, y] == -1)
+                    if (chunk.TerrainMap[x, y] == Blocks.GetBlock("Air"))
                     {
-                        newTerrain[x, y] = -1;
+                        newTerrain[x, y] = Blocks.GetBlock("Air");
                         continue;
                     }
 
@@ -96,7 +97,7 @@ namespace Terraria.world
                     float finalValue = Utils.LerpF(caveValue, worldValue, 0.5f);
                     float normalized = (finalValue + 1) / 2f;
 
-                    newTerrain[x, y] = (normalized > 0.1f) ? chunk.TerrainMap[x, y] : -1;
+                    newTerrain[x, y] = (normalized > 0.1f) ? chunk.TerrainMap[x, y] : Blocks.GetBlock("Air");
                 }
             }
 
@@ -114,13 +115,13 @@ namespace Terraria.world
             {
                 for (int y = 0; y < Height; y++)
                 {
-                    int tileNumber = terrain.TerrainMap[x, y];
+                    Block block = terrain.TerrainMap[x, y];
 
-                    if (tileNumber == -1)
+                    if (block == Blocks.GetBlock("Air"))
                         continue;
 
-                    int tu = tileNumber % tileSetWidth;
-                    int tv = tileNumber / tileSetWidth;
+                    int tu = block.Id % tileSetWidth;
+                    int tv = block.Id / tileSetWidth;
 
                     Vertex[] quad = new Vertex[4];
 
@@ -180,13 +181,13 @@ namespace Terraria.world
 
     public class Chunk
     {
-        public int[,] TerrainMap;
+        public Block[,] TerrainMap;
         public VertexArray Vertices;
         public readonly IntRect ChunkBounds;
         public int ID;
         private bool IsDirty = false;
 
-        public Chunk(int[,] terrainMap, IntRect chunkBounds)
+        public Chunk(Block[,] terrainMap, IntRect chunkBounds)
         {
             TerrainMap = terrainMap;
             ChunkBounds = chunkBounds;
@@ -221,10 +222,10 @@ namespace Terraria.world
 
             if (x < 0 || x >= TerrainMap.GetLength(0) || y < 0 || y >= TerrainMap.GetLength(1))
                 return;
-            if (TerrainMap[x, y] != -1)
+            if (TerrainMap[x, y] != Blocks.GetBlock("Air"))
                 return;
 
-            TerrainMap[x, y] = 2;
+            TerrainMap[x, y] = Blocks.GetBlock("Stone");
             IsDirty = true;
         }
 
@@ -235,10 +236,10 @@ namespace Terraria.world
 
             if (x < 0 || x >= TerrainMap.GetLength(0) || y < 0 || y >= TerrainMap.GetLength(1))
                 return;
-            if (TerrainMap[x, y] == -1)
+            if (TerrainMap[x, y] == Blocks.GetBlock("Air"))
                 return;
 
-            TerrainMap[x, y] = -1;
+            TerrainMap[x, y] = Blocks.GetBlock("Air");
             IsDirty = true;
         }
 
@@ -292,11 +293,11 @@ namespace Terraria.world
             {
                 for (int tx = 0; tx < tileWidth; tx++)
                 {
-                    if (processed[tx, ty] || TerrainMap[tx, ty] == -1)
+                    if (processed[tx, ty] || TerrainMap[tx, ty] == Blocks.GetBlock("Air"))
                         continue;
 
                     int rectWidth = 1;
-                    while (tx + rectWidth < tileWidth && !processed[tx + rectWidth, ty] && TerrainMap[tx + rectWidth, ty] != -1)
+                    while (tx + rectWidth < tileWidth && !processed[tx + rectWidth, ty] && TerrainMap[tx + rectWidth, ty] != Blocks.GetBlock("Air"))
                     {
                         rectWidth++;
                     }
@@ -307,7 +308,7 @@ namespace Terraria.world
                     {
                         for (int i = 0; i < rectWidth; i++)
                         {
-                            if (processed[tx + i, ty + rectHeight] || TerrainMap[tx + i, ty + rectHeight] == -1)
+                            if (processed[tx + i, ty + rectHeight] || TerrainMap[tx + i, ty + rectHeight] == Blocks.GetBlock("Air"))
                             {
                                 done = true;
                                 break;
