@@ -5,6 +5,143 @@ using Terraria.utils;
 
 namespace Terraria.world
 {
+    class WorldGenerator
+    {
+        public readonly int Width = Constants.CHUNK_SIZE.X;
+        public readonly int Height = Constants.CHUNK_SIZE.Y;
+        public readonly float Frequency;
+        public readonly float Amplitude;
+        private FastNoiseLite WorldNoise;
+        private FastNoiseLite CaveNoise;
+        public readonly int Seed;
+        public readonly List<Chunk> Chunks = new List<Chunk>();
+
+        public WorldGenerator(float frequency, float amplitude, int seed)
+        {
+            this.Frequency = frequency;
+            this.Amplitude = amplitude;
+            this.Seed = seed;
+
+            this.WorldNoise = new(seed);
+            WorldNoise.SetNoiseType(FastNoiseLite.NoiseType.OpenSimplex2);
+            WorldNoise.SetFrequency(frequency / 2f);
+            WorldNoise.SetFractalType(FastNoiseLite.FractalType.DomainWarpProgressive);
+            this.CaveNoise = new(seed);
+            CaveNoise.SetNoiseType(FastNoiseLite.NoiseType.Cellular);
+            CaveNoise.SetFrequency(frequency);
+            CaveNoise.SetFractalType(FastNoiseLite.FractalType.FBm);
+            CaveNoise.SetFractalOctaves(3);
+        }
+
+        public Chunk GenerateNoise(int offset=0)
+        {
+            int[,] terrain = new int[Width, Height];
+
+            for (int x = 0; x < Width; x++)
+            {
+                float noiseValue = MathF.Pow(WorldNoise.GetNoise(x + offset, 0) * 1.4f, 4);
+                float ridge = -1 * MathF.Abs(noiseValue);
+
+                float normalized = (ridge + 1) / 2.0f;
+                int terrainHeight = (int)(normalized * Amplitude) + (Height / 2 - (int)(Amplitude / 2));
+
+                for (int y = 0; y < Height; y++)
+                {
+                    if (y < terrainHeight)
+                    {
+                        terrain[x, y] = -1;
+                    } else if (y == terrainHeight)
+                    {
+                        terrain[x, y] = 0;
+                    } else if(y < terrainHeight + 5)
+                    {
+                        terrain[x, y] = 1;
+                    } else
+                    {
+                        terrain[x, y] = 2;
+                    }
+                }
+            }
+
+            Chunk chunk = new(terrain, new IntRect(new Vector2i(offset * Width/(Width/Constants.BLOCK_SIZE), 0), new Vector2i(Width * Constants.BLOCK_SIZE, Height * Constants.BLOCK_SIZE)));
+            chunk.ID = Chunks.Count;
+            Chunks.Add(chunk);
+            return chunk;
+        }
+
+        public Chunk GenerateCaves(Chunk chunk, int offset = 0)
+        {
+            int[,] newTerrain = new int[Width, Height];
+
+            for(int x = 0; x < Width; x++)
+            {
+                for(int y = 0; y < Height; y++)
+                {
+                    if (chunk.TerrainMap[x, y] == -1)
+                    {
+                        newTerrain[x, y] = -1;
+                        continue;
+                    }
+
+                    float caveValue = CaveNoise.GetNoise(x + offset, y);
+                    float worldValue = WorldNoise.GetNoise(x + offset, y);
+                    float finalValue = Utils.LerpF(caveValue, worldValue, 0.5f);
+                    float normalized = (finalValue + 1) / 2f;
+
+                    newTerrain[x, y] = (normalized > 0.1f) ? chunk.TerrainMap[x, y] : -1;
+                }
+            }
+
+            chunk.TerrainMap = newTerrain;
+            return chunk;
+        }
+
+        public VertexArray GenerateTerrain(Chunk terrain, Texture tileSet, int offset = 0)
+        {
+            VertexArray vertices = new(PrimitiveType.Quads);
+            int tileSize = Constants.BLOCK_SIZE;
+            int tileSetWidth = (int)(tileSet.Size.X / tileSize);
+
+            for (int x = 0; x < Width; x++)
+            {
+                for (int y = 0; y < Height; y++)
+                {
+                    int tileNumber = terrain.TerrainMap[x, y];
+
+                    if (tileNumber == -1)
+                        continue;
+
+                    int tu = tileNumber % tileSetWidth;
+                    int tv = tileNumber / tileSetWidth;
+
+                    Vertex[] quad = new Vertex[4];
+
+                    quad[0].Position = new Vector2f(x * tileSize + offset, y * tileSize);
+                    quad[1].Position = new Vector2f((x + 1) * tileSize + offset, y * tileSize);
+                    quad[2].Position = new Vector2f((x + 1) * tileSize + offset, (y + 1) * tileSize);
+                    quad[3].Position = new Vector2f(x * tileSize + offset, (y + 1) * tileSize);
+
+                    quad[0].Color = Color.White;
+                    quad[1].Color = Color.White;
+                    quad[2].Color = Color.White;
+                    quad[3].Color = Color.White;
+
+                    quad[0].TexCoords = new Vector2f(tu * tileSize, tv * tileSize);
+                    quad[1].TexCoords = new Vector2f((tu + 1) * tileSize, tv * tileSize);
+                    quad[2].TexCoords = new Vector2f((tu + 1) * tileSize, (tv + 1) * tileSize);
+                    quad[3].TexCoords = new Vector2f(tu * tileSize, (tv + 1) * tileSize);
+
+                    foreach (var vertex in quad)
+                    {
+                        vertices.Append(vertex);
+                    }
+                }
+            }
+
+            terrain.Vertices = vertices;
+            return vertices;
+        }
+    }
 
     public class Chunk
     {
@@ -125,161 +262,5 @@ namespace Terraria.world
             return colliders;
         }
 
-    }
-
-    class WorldGenerator
-    {
-        public readonly int Width = Constants.CHUNK_SIZE.X;
-        public readonly int Height = Constants.CHUNK_SIZE.Y;
-        public readonly float Frequency;
-        public readonly float Amplitude;
-        private FastNoiseLite WorldNoise;
-        private FastNoiseLite CaveNoise;
-        public readonly int Seed;
-        public readonly List<Chunk> Chunks = new List<Chunk>();
-
-        public WorldGenerator(float frequency, float amplitude, int seed)
-        {
-            this.Frequency = frequency;
-            this.Amplitude = amplitude;
-            this.Seed = seed;
-
-            this.WorldNoise = new(seed);
-            WorldNoise.SetNoiseType(FastNoiseLite.NoiseType.OpenSimplex2);
-            WorldNoise.SetFrequency(frequency/1.5f);
-            this.CaveNoise = new(seed);
-            CaveNoise.SetNoiseType(FastNoiseLite.NoiseType.Cellular);
-            CaveNoise.SetFrequency(frequency * 10);
-        }
-
-        public Chunk GenerateNoise(int offset=0)
-        {
-            int[,] terrain = new int[Width, Height];
-
-            for (int x = 0; x < Width; x++)
-            {
-                float noiseValue = WorldNoise.GetNoise(x + offset, 0);
-
-                float normalized = (noiseValue + 1) / 2.0f;
-                int terrainHeight = (int)(normalized * Amplitude) + (Height / 2 - (int)(Amplitude / 2));
-
-                for (int y = 0; y < Height; y++)
-                {
-                    if (y < terrainHeight)
-                    {
-                        terrain[x, y] = -1;
-                    } else if (y == terrainHeight)
-                    {
-                        terrain[x, y] = 0;
-                    } else if(y < terrainHeight + 5)
-                    {
-                        terrain[x, y] = 1;
-                    } else
-                    {
-                        terrain[x, y] = 2;
-                    }
-                }
-            }
-
-            Chunk chunk = new(terrain, new IntRect(new Vector2i(offset * Width, 0), new Vector2i(Width * Constants.BLOCK_SIZE, Height * Constants.BLOCK_SIZE)));
-            chunk.ID = Chunks.Count;
-            Chunks.Add(chunk);
-            return chunk;
-        }
-
-        public Chunk GenerateCaves(Chunk terrain, int offset = 0)
-        {
-            int[,] newTerrain = new int[Width, Height];
-
-            for(int x = 0; x < Width; x++)
-            {
-                for(int y = 0; y < Height; y++)
-                {
-                    if (terrain.TerrainMap[x, y] == -1)
-                    {
-                        newTerrain[x, y] = -1;
-                        continue;
-                    }
-
-                    float cellularValue = CaveNoise.GetNoise(x + offset, y) * 1.3f;
-                    float simplexValue = WorldNoise.GetNoise(x + offset, y) * 1.1f;
-                    float cosValue = cosMix(cellularValue, simplexValue, 0.55f);
-                    float noiseValue = mix(cosValue, simplexValue, 0.5f);
-                    float normalized = (noiseValue + 1) / 2.0f;
-
-                    newTerrain[x, y] = (normalized > 0.1f) ? terrain.TerrainMap[x, y] : -1;
-                }
-            }
-
-            terrain.TerrainMap = newTerrain;
-            return terrain;
-        }
-
-        public VertexArray GenerateTerrain(Chunk terrain, Texture tileSet, int offset = 0)
-        {
-            VertexArray vertices = new(PrimitiveType.Quads);
-            int tileSize = Constants.BLOCK_SIZE;
-            int tileSetWidth = (int)(tileSet.Size.X / tileSize);
-
-            for (int x = 0; x < Width; x++)
-            {
-                for (int y = 0; y < Height; y++)
-                {
-                    int tileNumber = terrain.TerrainMap[x, y];
-
-                    if (tileNumber == -1)
-                        continue;
-
-                    // Calculate position in tileset
-                    int tu = tileNumber % tileSetWidth;
-                    int tv = tileNumber / tileSetWidth;
-
-                    // Define the four corners of the tile
-                    Vertex[] quad = new Vertex[4];
-
-                    // Position each corner
-                    quad[0].Position = new Vector2f(x * tileSize + offset, y * tileSize);
-                    quad[1].Position = new Vector2f((x + 1) * tileSize + offset, y * tileSize);
-                    quad[2].Position = new Vector2f((x + 1) * tileSize + offset, (y + 1) * tileSize);
-                    quad[3].Position = new Vector2f(x * tileSize + offset, (y + 1) * tileSize);
-
-                    // Assign texture coordinates
-                    Vector2f topLeft = new Vector2f(0, 0);
-                    Vector2f topRight = new Vector2f(tileSize, 0);
-                    Vector2f bottomRight = new Vector2f(tileSize, tileSize);
-                    Vector2f bottomLeft = new Vector2f(0, tileSize);
-
-                    quad[0].Color = Color.White;
-                    quad[1].Color = Color.White;
-                    quad[2].Color = Color.White;
-                    quad[3].Color = Color.White;
-
-                    quad[0].TexCoords = new Vector2f(tu * tileSize, tv * tileSize);
-                    quad[1].TexCoords = new Vector2f((tu + 1) * tileSize, tv * tileSize);
-                    quad[2].TexCoords = new Vector2f((tu + 1) * tileSize, (tv + 1) * tileSize);
-                    quad[3].TexCoords = new Vector2f(tu * tileSize, (tv + 1) * tileSize);
-
-                    // Append vertices to the vertex array
-                    foreach (var vertex in quad)
-                    {
-                        vertices.Append(vertex);
-                    }
-                }
-            }
-
-            terrain.Vertices = vertices;
-            return vertices;
-        }
-
-        float mix(float a, float b, float t)
-        {
-            return a * (1 - t) + b * t;
-        }
-
-        float cosMix(float a, float b, float t)
-        {
-            float mu2 = (1 - MathF.Cos(t * MathF.PI)) / 2;
-            return a * (1 - mu2) + b * mu2;
-        }
     }
 }

@@ -61,13 +61,15 @@ namespace Terraria
 
         private void Update()
         {
-            PlayerCharacter player = new(new Vector2f(Constants.CHUNK_SIZE.X, Constants.CHUNK_SIZE.Y / 2.2f * 16)) { FillColor = Color.Blue};
+            int secondsSinceEpoch = (int)(DateTime.UtcNow - new DateTime(1970, 1, 1)).TotalSeconds;
 
-            WorldGenerator world = new(0.02f, 20, 1773);
+            PlayerCharacter player = new(new Vector2f(Constants.CHUNK_SIZE.X, Constants.CHUNK_SIZE.Y / 2.2f * 16));
+
+            WorldGenerator world = new(0.02f, 20, secondsSinceEpoch);
             Texture tileset = new Texture("assets/sprites/texture_atlas.png");
             List<Chunk> chunks = new List<Chunk>();
             List<VertexArray> terrainMeshes = new List<VertexArray>();
-            for (int x = 0; x < 100; x++)
+            for (int x = 0; x < 50; x++)
             {
                 chunks.Add(world.GenerateCaves(world.GenerateNoise(x * Constants.CHUNK_SIZE.X), x * Constants.CHUNK_SIZE.X));
             }
@@ -84,7 +86,6 @@ namespace Terraria
             double fps = 0.0;
             Text fpsText = new("120 FPS", Font);
 
-            float speedMul = 3;
             Vector2f MousePos = new();
 
             Chunk currentChunk = chunks[2];
@@ -134,13 +135,6 @@ namespace Terraria
                         break;
                     }
                 }
-                
-                if (Keyboard.IsKeyPressed(Keyboard.Key.A))
-                    player.Move(new Vector2f(-5000 * speedMul, 0), deltaTime);
-                if (Keyboard.IsKeyPressed(Keyboard.Key.D))
-                    player.Move(new Vector2f(5000 * speedMul, 0), deltaTime);
-                if (Keyboard.IsKeyPressed(Keyboard.Key.W) && player.isGrounded)
-                    player.Move(new Vector2f(0, -5000), 0.025f);
                 if (Keyboard.IsKeyPressed(Keyboard.Key.E))
                     CameraView.Zoom(1.05f);
                 if (Keyboard.IsKeyPressed(Keyboard.Key.Q))
@@ -149,6 +143,8 @@ namespace Terraria
                     SfmlWindow.Close();
                 if (Keyboard.IsKeyPressed(Keyboard.Key.LShift))
                     player.Velocity = new Vector2f();
+                if (Mouse.IsButtonPressed(Mouse.Button.Left) && DebugMode && Freecam)
+                    player.Position = MousePos - player.Size / 2;
 
                 player.Update(deltaTime, currentChunkColliders);
 
@@ -162,7 +158,7 @@ namespace Terraria
                     if(DebugMode)
                     {
                         Chunk chunk = chunks[i];
-                        RectangleShape ChunkOutline = new((Vector2f)chunk.ChunkBounds.Size) { OutlineThickness = 4, FillColor = Color.Transparent, OutlineColor = Color.Yellow, Position = (Vector2f)chunk.ChunkBounds.Position };
+                        RectangleShape ChunkOutline = new((Vector2f)chunk.ChunkBounds.Size) { OutlineThickness = 2, FillColor = Color.Transparent, OutlineColor = Color.Black, Position = (Vector2f)chunk.ChunkBounds.Position };
                         SfmlWindow.Draw(ChunkOutline);
                     }
 

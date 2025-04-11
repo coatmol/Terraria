@@ -50,5 +50,10 @@ namespace Terraria.utils
         {
             return a * (1 - t) + b * t;
         }
+
+        public static float LerpF(float a, float b, float t)
+        {
+            return a * (1 - t) + b * t;
+        }
     }
 }
