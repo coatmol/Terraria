@@ -1,6 +1,6 @@
 ﻿using SFML.Graphics;
 
-namespace Terraria
+namespace Terraria.render
 {
     static class Renderer
     {

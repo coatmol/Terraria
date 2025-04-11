@@ -1,18 +1,21 @@
 ﻿using SFML.Graphics;
 using SFML.System;
+using Terraria.physics;
+using Terraria.utils;
 
 namespace Terraria.world
 {
 
     public class Chunk
     {
-        public int[,] TerrainVertices;
+        public int[,] TerrainMap;
+        public VertexArray Vertices;
         public readonly IntRect ChunkBounds;
         public int ID;
 
-        public Chunk(int[,] terrainVertices, IntRect chunkBounds)
+        public Chunk(int[,] terrainMap, IntRect chunkBounds)
         {
-            TerrainVertices = terrainVertices;
+            TerrainMap = terrainMap;
             ChunkBounds = chunkBounds;
         }
 
@@ -27,12 +30,107 @@ namespace Terraria.world
             return ChunkBounds.Intersects(viewRect);
         }
 
+        public int GetOffset()
+        {
+            return ChunkBounds.Width / 16;
+        }
+
+        public bool IsCurrentChunk(IntRect playerBB)
+        {
+            return ChunkBounds.Intersects(playerBB);
+        }
+
+        public List<IntRect> GetBlockRects()
+        {
+            List<IntRect> rects = new List<IntRect>();
+            for (int vert = 0; vert < Vertices.VertexCount; vert += 4)
+            {
+                Vector2f pos = Vertices[(uint)vert].Position;
+                Vector2f size = new Vector2f(Constants.BLOCK_SIZE, Constants.BLOCK_SIZE);
+                IntRect rect = new((Vector2i)pos, (Vector2i)size);
+                rects.Add(rect);
+            }
+            return rects;
+        }
+
+        public List<Collider> GetColliders()
+        {
+            List<Collider> colliders = new List<Collider>();
+            for (int vert = 0; vert < Vertices.VertexCount; vert += 4)
+            {
+                Vector2f pos = Vertices[(uint)vert].Position;
+                Vector2f size = new Vector2f(Constants.BLOCK_SIZE, Constants.BLOCK_SIZE);
+                IntRect rect = new((Vector2i)pos, (Vector2i)size);
+                Collider collider = new Collider(rect);
+                colliders.Add(collider);
+            }
+            return colliders;
+        }
+
+        public List<Collider> GetMergedColliders()
+        {
+            int tileWidth = ChunkBounds.Width / Constants.BLOCK_SIZE;
+            int tileHeight = ChunkBounds.Height / Constants.BLOCK_SIZE;
+
+            bool[,] processed = new bool[tileWidth, tileHeight];
+            List<Collider> colliders = new List<Collider>();
+
+            for (int ty = 0; ty < tileHeight; ty++)
+            {
+                for (int tx = 0; tx < tileWidth; tx++)
+                {
+                    if (processed[tx, ty] || TerrainMap[tx, ty] == -1)
+                        continue;
+
+                    int rectWidth = 1;
+                    while (tx + rectWidth < tileWidth && !processed[tx + rectWidth, ty] && TerrainMap[tx + rectWidth, ty] != -1)
+                    {
+                        rectWidth++;
+                    }
+
+                    int rectHeight = 1;
+                    bool done = false;
+                    while (ty + rectHeight < tileHeight && !done)
+                    {
+                        for (int i = 0; i < rectWidth; i++)
+                        {
+                            if (processed[tx + i, ty + rectHeight] || TerrainMap[tx + i, ty + rectHeight] == -1)
+                            {
+                                done = true;
+                                break;
+                            }
+                        }
+                        if (!done)
+                            rectHeight++;
+                    }
+
+                    for (int i = 0; i < rectWidth; i++)
+                    {
+                        for (int j = 0; j < rectHeight; j++)
+                        {
+                            processed[tx + i, ty + j] = true;
+                        }
+                    }
+
+                    int worldX = ChunkBounds.Left + tx * Constants.BLOCK_SIZE;
+                    int worldY = ChunkBounds.Top + ty * Constants.BLOCK_SIZE;
+                    int worldWidth = rectWidth * Constants.BLOCK_SIZE;
+                    int worldHeight = rectHeight * Constants.BLOCK_SIZE;
+
+                    Collider rect = new Collider(new Vector2f(worldX, worldY), new Vector2f(worldWidth, worldHeight)) { FillColor = Color.Red, OutlineColor = Color.Yellow, OutlineThickness = 3 };
+                    colliders.Add(rect);
+                }
+            }
+
+            return colliders;
+        }
+
     }
 
     class WorldGenerator
     {
-        public readonly int Width;
-        public readonly int Height;
+        public readonly int Width = Constants.CHUNK_SIZE.X;
+        public readonly int Height = Constants.CHUNK_SIZE.Y;
         public readonly float Frequency;
         public readonly float Amplitude;
         private FastNoiseLite WorldNoise;
@@ -40,10 +138,8 @@ namespace Terraria.world
         public readonly int Seed;
         public readonly List<Chunk> Chunks = new List<Chunk>();
 
-        public WorldGenerator(int width, int height, float frequency, float amplitude, int seed)
+        public WorldGenerator(float frequency, float amplitude, int seed)
         {
-            this.Width = width;
-            this.Height = height;
             this.Frequency = frequency;
             this.Amplitude = amplitude;
             this.Seed = seed;
@@ -69,11 +165,23 @@ namespace Terraria.world
 
                 for (int y = 0; y < Height; y++)
                 {
-                    terrain[x, y] = (y >= terrainHeight) ? 0 : -1;
+                    if (y < terrainHeight)
+                    {
+                        terrain[x, y] = -1;
+                    } else if (y == terrainHeight)
+                    {
+                        terrain[x, y] = 0;
+                    } else if(y < terrainHeight + 5)
+                    {
+                        terrain[x, y] = 1;
+                    } else
+                    {
+                        terrain[x, y] = 2;
+                    }
                 }
             }
 
-            Chunk chunk = new(terrain, new IntRect(new Vector2i(offset * Width, 0), new Vector2i(Width * 16, Height * 16)));
+            Chunk chunk = new(terrain, new IntRect(new Vector2i(offset * Width, 0), new Vector2i(Width * Constants.BLOCK_SIZE, Height * Constants.BLOCK_SIZE)));
             chunk.ID = Chunks.Count;
             Chunks.Add(chunk);
             return chunk;
@@ -87,44 +195,44 @@ namespace Terraria.world
             {
                 for(int y = 0; y < Height; y++)
                 {
-                    if (terrain.TerrainVertices[x, y] == -1)
+                    if (terrain.TerrainMap[x, y] == -1)
                     {
                         newTerrain[x, y] = -1;
                         continue;
                     }
 
-                    float cellularValue = CaveNoise.GetNoise(x + offset, y);
-                    float simplexValue = WorldNoise.GetNoise(x + offset, y);
+                    float cellularValue = CaveNoise.GetNoise(x + offset, y) * 1.3f;
+                    float simplexValue = WorldNoise.GetNoise(x + offset, y) * 1.1f;
                     float cosValue = cosMix(cellularValue, simplexValue, 0.55f);
                     float noiseValue = mix(cosValue, simplexValue, 0.5f);
                     float normalized = (noiseValue + 1) / 2.0f;
 
-                    newTerrain[x, y] = (normalized > 0.1f) ? 0 : -1;
+                    newTerrain[x, y] = (normalized > 0.1f) ? terrain.TerrainMap[x, y] : -1;
                 }
             }
 
-            terrain.TerrainVertices = newTerrain;
+            terrain.TerrainMap = newTerrain;
             return terrain;
         }
 
         public VertexArray GenerateTerrain(Chunk terrain, Texture tileSet, int offset = 0)
         {
             VertexArray vertices = new(PrimitiveType.Quads);
-            int tileSize = 16;
+            int tileSize = Constants.BLOCK_SIZE;
             int tileSetWidth = (int)(tileSet.Size.X / tileSize);
 
             for (int x = 0; x < Width; x++)
             {
                 for (int y = 0; y < Height; y++)
                 {
-                    int tileNumber = terrain.TerrainVertices[x, y];
+                    int tileNumber = terrain.TerrainMap[x, y];
 
                     if (tileNumber == -1)
                         continue;
 
                     // Calculate position in tileset
-                    //int tu = tileNumber % tileSetWidth;
-                    //int tv = tileNumber / tileSetWidth;
+                    int tu = tileNumber % tileSetWidth;
+                    int tv = tileNumber / tileSetWidth;
 
                     // Define the four corners of the tile
                     Vertex[] quad = new Vertex[4];
@@ -146,20 +254,20 @@ namespace Terraria.world
                     quad[2].Color = Color.White;
                     quad[3].Color = Color.White;
 
-                    quad[0].TexCoords = topLeft;
-                    quad[1].TexCoords = topRight;
-                    quad[2].TexCoords = bottomRight;
-                    quad[3].TexCoords = bottomLeft;
+                    quad[0].TexCoords = new Vector2f(tu * tileSize, tv * tileSize);
+                    quad[1].TexCoords = new Vector2f((tu + 1) * tileSize, tv * tileSize);
+                    quad[2].TexCoords = new Vector2f((tu + 1) * tileSize, (tv + 1) * tileSize);
+                    quad[3].TexCoords = new Vector2f(tu * tileSize, (tv + 1) * tileSize);
 
                     // Append vertices to the vertex array
                     foreach (var vertex in quad)
                     {
-                        //Console.WriteLine(vertex);
                         vertices.Append(vertex);
                     }
                 }
             }
 
+            terrain.Vertices = vertices;
             return vertices;
         }
 
