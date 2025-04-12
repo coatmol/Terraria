@@ -120,8 +120,8 @@ namespace Terraria.world
                     if (block == Blocks.GetBlock("Air"))
                         continue;
 
-                    int tu = block.Id % tileSetWidth;
-                    int tv = block.Id / tileSetWidth;
+                    int tu = block.id % tileSetWidth;
+                    int tv = block.id / tileSetWidth;
 
                     Vertex[] quad = new Vertex[4];
 

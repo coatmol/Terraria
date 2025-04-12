@@ -19,5 +19,10 @@ namespace Terraria.render
         {
             return [new Vertex(Start, Color), new Vertex(End, Color)];
         }
+
+        public void Draw(RenderTarget target)
+        {
+            target.Draw(GetVertices(), PrimitiveType.Lines);
+        }
     }
 }

@@ -4,10 +4,10 @@
     {
         public static Block[] AllBlocks = new Block[]
         {
-            new Block { Id = -1, Name = "Air" },
-            new Block { Id = 0, Name = "Grass" },
-            new Block { Id = 1, Name = "Dirt" },
-            new Block { Id = 2, Name = "Stone" },
+            new Block { id = -1, name = "Air", collisionType = CollisionType.Solid },
+            new Block { id = 0, name = "Grass", collisionType = CollisionType.Solid },
+            new Block { id = 1, name = "Dirt", collisionType = CollisionType.Solid },
+            new Block { id = 2, name = "Stone", collisionType = CollisionType.Solid },
         };
 
         public static Block GetBlock(int id)
@@ -21,26 +21,39 @@
         {
             foreach (var block in AllBlocks)
             {
-                if (block.Name == name)
+                if (block.name == name)
                     return block;
             }
             return AllBlocks[0];
         }
     }
 
+    public enum CollisionType
+    {
+        None,
+        Solid,
+        Liquid,
+    }
+
     public struct Block
     {
-        public int Id; // Slot on Texture Atlas
-        public string Name;
+        public int id; // Slot on Texture Atlas
+        public string name;
+        public CollisionType collisionType;
 
         public static bool operator ==(Block a, Block b)
         {
-            return a.Id == b.Id;
+            return a.id == b.id;
         }
 
         public static bool operator !=(Block a, Block b)
         {
-            return a.Id != b.Id;
+            return a.id != b.id;
+        }
+
+        public override bool Equals(object? obj)
+        {
+            return obj != null && obj is Block block && id == block.id;
         }
     }
 }

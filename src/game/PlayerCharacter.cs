@@ -14,16 +14,25 @@ namespace Terraria.game
         private bool isFlipped = false;
         private readonly WorldGenerator world;
 
+        // PHYSICS
         private const float MAX_SPEED = 1.5f;
         private const float ACCELERATION = 5.0f;
         private const float DECELERATION = 22.0f;
         private const float GRAVITY = 9.8f;
-        private const float TERMINAL_VELOCITY = 15.0f; // Max fall speed
+        private const float TERMINAL_VELOCITY = 15.0f;
         private const float JUMP_FORCE = -3.0f;
+
+        // ANIMATION
+        private readonly Vector2i FRAME_SIZE = new(16, 24);
+        private const int FRAME_COUNT = 2;
+        private float frameDuration = 0.15f;
+        private float elapsedTime = 0;
+        private float currentFrame = 0;
 
         public PlayerCharacter(Vector2f pos, WorldGenerator world) : base(pos, new Vector2f(16, 24), new Vector2f())
         {
-            this.Texture = new Texture("assets/sprites/character.png");
+            this.Texture = new Texture("assets/sprites/player.png");
+            this.TextureRect = new IntRect(0, 0, 16, 24);
             this.world = world;
 
             EventManager.SubcribeToEvent(EventManager.EventType.KeyPressed, (e) =>
@@ -47,7 +56,6 @@ namespace Terraria.game
             texRect.Width = -texRect.Width;
 
             TextureRect = texRect;
-            isFlipped = !isFlipped;
         }
 
         private void Simulate(List<Collider> colliders)
@@ -109,21 +117,51 @@ namespace Terraria.game
             ExitY: { }
         }
 
+        private void UpdateTextureRect()
+        {
+            int x = (int)(currentFrame * FRAME_SIZE.X);
+            TextureRect = new IntRect(x, 0, FRAME_SIZE.X, FRAME_SIZE.Y);
+            if(isFlipped)
+                FlipTexture();
+        }
 
         public void Update(float dt, List<Collider> colliders)
         {
             this.dt = dt;
+            elapsedTime += dt;
+
+            while (elapsedTime >= frameDuration)
+            {
+                if(Velocity.X != 0)
+                {
+                    elapsedTime -= frameDuration;
+                    currentFrame = (currentFrame + 1) % FRAME_COUNT;
+                    UpdateTextureRect();
+                } else
+                {
+                    elapsedTime -= frameDuration;
+                    currentFrame = 0;
+                    UpdateTextureRect();
+                }
+            }
+
             if (Keyboard.IsKeyPressed(Keyboard.Key.A))
             {
                 Velocity.X = Utils.Approach(Velocity.X, -MAX_SPEED, ACCELERATION * dt);
                 if (!isFlipped)
+                {
                     FlipTexture();
+                    isFlipped = true;
+                }
             }
             if (Keyboard.IsKeyPressed(Keyboard.Key.D))
             {
                 Velocity.X = Utils.Approach(Velocity.X, MAX_SPEED, ACCELERATION * dt);
                 if (isFlipped)
+                {
                     FlipTexture();
+                    isFlipped = false;
+                }
             }
             if (!Keyboard.IsKeyPressed(Keyboard.Key.A) && !Keyboard.IsKeyPressed(Keyboard.Key.D))
             {

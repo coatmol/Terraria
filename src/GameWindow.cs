@@ -26,8 +26,6 @@ namespace Terraria
             this.CameraView = new(new FloatRect(0, 0, WIDTH, HEIGHT));
             SfmlWindow.SetFramerateLimit(120);
 
-            Renderer.RegisterSprite(new Sprite(new Texture("assets/sprites/cat.jpg")));
-
             this.Font = new("assets/fonts/times new roman.ttf");
             Utils.mainWindow = this;
 
@@ -180,7 +178,7 @@ namespace Terraria
 
                     if (!chunks[i].IsInView(CameraView))
                         continue;
-
+                    
                     SfmlWindow.Draw(terrainMeshes[i], states);
                 }
 
@@ -192,14 +190,15 @@ namespace Terraria
 
                 if(DebugMode)
                 {
-                    LineShape playerLookVector = new LineShape(player.Position + player.Size / 2, (player.Position + player.Size / 2) + player.Velocity, player.isGrounded ? Color.Blue : Color.Cyan);
+                    LineShape playerLookVector = new LineShape(player.Position + player.Size / 2, (player.Position + player.Size / 2) + player.Velocity * 64, player.isGrounded ? Color.Blue : Color.Cyan);
                     LineShape playerRayDir = new LineShape(player.Position + player.Size / 2, (player.Position + player.Size / 2) + player.Velocity * deltaTime * 16, Color.Magenta);
-                    SfmlWindow.Draw(playerLookVector.GetVertices(), PrimitiveType.Lines);
-                    SfmlWindow.Draw(playerRayDir.GetVertices(), PrimitiveType.Lines);
+                    playerLookVector.Draw(SfmlWindow);
+                    playerRayDir.Draw(SfmlWindow);
                     SfmlWindow.Draw(new Text(player.Velocity.ToString(), Font) { Position = (player.Position + player.Size / 2) + player.Velocity, CharacterSize = 12, FillColor = Color.Black });
                 }
 
                 SfmlWindow.Draw(player);
+
                 SfmlWindow.SetView(SfmlWindow.DefaultView);
                 SfmlWindow.Draw(fpsText);
 
