@@ -102,6 +102,8 @@ namespace Terraria
             bool DebugMode = false;
             bool Freecam = false;
 
+            Sprite BlockSelection = new Sprite(new Texture("assets/sprites/block_select.png")) { Color = new Color(255, 255, 255, 100)};
+
             EventManager.SubcribeToEvent(EventManager.EventType.KeyPressed, (e) =>
             {
                 if (e.Data is KeyEventArgs keyEvent)
@@ -122,6 +124,7 @@ namespace Terraria
             {
                 float deltaTime = clock.Restart().AsSeconds();
                 MousePos = SfmlWindow.MapPixelToCoords(Mouse.GetPosition(SfmlWindow), CameraView);
+                Vector2f? blockSelectionPos = (Vector2f?)world.Raycast(MousePos, player.Position, 6);
                 if(DebugMode && Freecam)
                 {
                     CameraView.Center += (MousePos - CameraView.Center) * deltaTime;
@@ -156,8 +159,8 @@ namespace Terraria
                     player.Velocity = new Vector2f();
                 if (Mouse.IsButtonPressed(Mouse.Button.Left) && DebugMode && Freecam)
                     player.Position = MousePos - player.Size / 2;
-                else if (Mouse.IsButtonPressed(Mouse.Button.Left))
-                    world.RemoveBlock(MousePos);
+                else if (Mouse.IsButtonPressed(Mouse.Button.Left) && blockSelectionPos != null)
+                    world.RemoveBlock((Vector2f)blockSelectionPos * Constants.BLOCK_SIZE);
                 if (Mouse.IsButtonPressed(Mouse.Button.Right))
                     world.PlaceBlock(MousePos);
 
@@ -189,13 +192,21 @@ namespace Terraria
                         SfmlWindow.Draw(collider);
                 }
 
+                if(blockSelectionPos != null)
+                {
+                    BlockSelection.Position = (Vector2f)(blockSelectionPos * Constants.BLOCK_SIZE);
+                    SfmlWindow.Draw(BlockSelection);
+                }
+
                 if(DebugMode)
                 {
                     LineShape playerLookVector = new LineShape(player.Position + player.Size / 2, (player.Position + player.Size / 2) + player.Velocity * 64, player.isGrounded ? Color.Blue : Color.Cyan);
                     LineShape playerRayDir = new LineShape(player.Position + player.Size / 2, (player.Position + player.Size / 2) + player.Velocity * deltaTime * 16, Color.Magenta);
+                    LineShape playerMouseDir = new LineShape(player.Position + player.Size / 2, (blockSelectionPos != null ? (Vector2f)blockSelectionPos * Constants.BLOCK_SIZE : new Vector2f()), Color.Magenta);
                     playerLookVector.Draw(SfmlWindow);
                     playerRayDir.Draw(SfmlWindow);
-                    SfmlWindow.Draw(new Text(player.Velocity.ToString(), Font) { Position = (player.Position + player.Size / 2) + player.Velocity, CharacterSize = 12, FillColor = Color.Black });
+                    playerMouseDir.Draw(SfmlWindow);
+                    SfmlWindow.Draw(new Text(player.Velocity.X != 0 ? player.Velocity.ToString() : player.Position.ToString(), Font) { Position = (player.Position + player.Size / 2) + player.Velocity, CharacterSize = 12, FillColor = Color.Black });
                 }
 
                 SfmlWindow.Draw(player);

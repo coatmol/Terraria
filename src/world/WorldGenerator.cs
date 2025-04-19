@@ -1,5 +1,6 @@
 ﻿using SFML.Graphics;
 using SFML.System;
+using SFML.Window;
 using Terraria.game;
 using Terraria.physics;
 using Terraria.utils;
@@ -236,6 +237,72 @@ namespace Terraria.world
                 return null;
             return chunk;
         }
+
+        public Block? GetBlock(Vector2f pos)
+        {
+            Chunk? chunk = GetChunkFromPosition(pos);
+            if (chunk == null) return null;
+            Vector2i localPos = (Vector2i)(pos / Constants.BLOCK_SIZE);
+            if(localPos.X < 0 || localPos.Y < 0 || localPos.X > Constants.CHUNK_SIZE.X || localPos.Y > Constants.CHUNK_SIZE.Y)
+                return null;
+            return chunk.TerrainMap[localPos.X, localPos.Y];
+        }
+
+        public Vector2i? Raycast(Vector2f mousePos, Vector2f playerPos, float distance)
+        {
+            // 1) Calculate direction
+            Vector2f dir = mousePos - playerPos;
+            float length = MathF.Sqrt(dir.X * dir.X + dir.Y * dir.Y);
+            dir /= length;
+
+            // 2) Initialize DDA variables
+            int mapX = (int)MathF.Floor(playerPos.X / Constants.BLOCK_SIZE);
+            int mapY = (int)MathF.Floor(playerPos.Y / Constants.BLOCK_SIZE);
+            int stepX = dir.X < 0 ? -1 : 1;
+            int stepY = dir.Y < 0 ? -1 : 1;
+            float deltaX = Constants.BLOCK_SIZE / MathF.Abs(dir.X);
+            float deltaY = Constants.BLOCK_SIZE / MathF.Abs(dir.Y);
+            float nextX = (mapX + (stepX > 0 ? 1 : 0)) * Constants.BLOCK_SIZE;
+            float nextY = (mapY + (stepY > 0 ? 1 : 0)) * Constants.BLOCK_SIZE;
+            float tMaxX = (nextX - playerPos.X) / dir.X;
+            float tMaxY = (nextY - playerPos.Y) / dir.Y;
+
+            // 3) Ray‐march loop
+            for (int i = 0; i < distance; i++)
+            {
+                // Advance the ray
+                if (tMaxX < tMaxY)
+                {
+                    tMaxX += deltaX;
+                    mapX += stepX;
+                }
+                else
+                {
+                    tMaxY += deltaY;
+                    mapY += stepY;
+                }
+
+                Chunk? chunk = GetChunkFromPosition(new Vector2f(
+                    mapX * Constants.BLOCK_SIZE,
+                    mapY * Constants.BLOCK_SIZE));
+                if (chunk == null)
+                    continue;
+
+                int localX = mapX - chunk.ChunkBounds.Left / Constants.BLOCK_SIZE;
+                int localY = mapY - chunk.ChunkBounds.Top / Constants.BLOCK_SIZE;
+
+                if (localX < 0 || localY < 0 || localX >= Constants.CHUNK_SIZE.X || localY >= Constants.CHUNK_SIZE.Y)
+                    return null;
+
+                var tile = chunk.TerrainMap[localX, localY];
+                if (tile.id != -1)
+                    return new Vector2i(mapX, mapY);
+            }
+
+            return null;
+        }
+
+
 
         public void PlaceBlock(Vector2f pos)
         {
