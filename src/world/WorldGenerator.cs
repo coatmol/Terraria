@@ -105,6 +105,76 @@ namespace Terraria.world
             return chunk;
         }
 
+        public Chunk CalculateLight(Chunk chunk)
+        {
+            chunk.TerrainMap = CalculateLight(chunk.TerrainMap);
+            return chunk;
+        }
+
+        public Block[,] CalculateLight(Block[,] terrain)
+        {
+            #region Light Reset
+            for (int x = 0; x < Constants.CHUNK_SIZE.X; x++)
+            {
+                for (int y = 0; y < Constants.CHUNK_SIZE.Y; y++)
+                {
+                    terrain[x, y].lightLevel = 1;
+                }
+            }
+            #endregion
+
+            Queue<Vector2i> lightQueue = new Queue<Vector2i>();
+            Vector2i[] neighborOffsets = { new(-1, 0), new(1, 0), new(0, -1), new(0, 1) };
+
+            #region Surface Illumination
+            int[] heightMap = new int[Constants.CHUNK_SIZE.X];
+            for (int x = 0; x < Constants.CHUNK_SIZE.X; x++)
+            {
+                for (int y = 0; y < Constants.CHUNK_SIZE.Y; y++)
+                {
+                    if (!terrain[x, y].isTransparent)
+                    {
+                        heightMap[x] = y;
+                        terrain[x, y].lightLevel = Constants.MAX_LIGHT_LEVEL;
+                        lightQueue.Enqueue(new Vector2i(x, y));
+                        break;
+                    }
+                }
+            }
+            #endregion
+            #region Light Propagation
+            List<Vector2i> processed = new List<Vector2i>();
+            while (lightQueue.Count > 0)
+            {
+                Vector2i pos = lightQueue.Dequeue();
+                Block currentBlock = terrain[pos.X, pos.Y];
+
+                foreach (var offset in neighborOffsets)
+                {
+                    Vector2i neighborPos = pos + offset;
+                    if (processed.Contains(neighborPos))
+                        continue;
+                    if (neighborPos.X < Constants.CHUNK_SIZE.X && neighborPos.Y < Constants.CHUNK_SIZE.Y && neighborPos.X >= 0 && neighborPos.Y >= 0)
+                    {
+                        Block neighborBlock = terrain[neighborPos.X, neighborPos.Y];
+                        int newLightLevel = currentBlock.lightLevel - 1;
+                        if (!neighborBlock.isTransparent)
+                        {
+                            if (neighborBlock.lightLevel < newLightLevel)
+                            {
+                                neighborBlock.lightLevel = newLightLevel;
+                                terrain[neighborPos.X, neighborPos.Y] = neighborBlock;
+                                processed.Add(neighborPos);
+                                lightQueue.Enqueue(neighborPos);
+                            }
+                        }
+                    }
+                }
+            }
+            #endregion
+            return terrain;
+        }
+
         public VertexArray GenerateTerrain(Chunk terrain, int offset = 0)
         {
             VertexArray vertices = new(PrimitiveType.Quads);
@@ -123,6 +193,11 @@ namespace Terraria.world
                     int tu = block.id % tileSetWidth;
                     int tv = block.id / tileSetWidth;
 
+                    int L = Math.Min(Math.Max(block.lightLevel, 1), Constants.MAX_LIGHT_LEVEL);
+                    float fraction = L / (float)Constants.MAX_LIGHT_LEVEL;
+                    byte lightCalc = (byte)(fraction * 255f);
+                    Color lightColor = new Color(lightCalc, lightCalc, lightCalc, 255);
+
                     Vertex[] quad = new Vertex[4];
 
                     quad[0].Position = new Vector2f(x * tileSize + offset, y * tileSize);
@@ -130,10 +205,10 @@ namespace Terraria.world
                     quad[2].Position = new Vector2f((x + 1) * tileSize + offset, (y + 1) * tileSize);
                     quad[3].Position = new Vector2f(x * tileSize + offset, (y + 1) * tileSize);
 
-                    quad[0].Color = Color.White;
-                    quad[1].Color = Color.White;
-                    quad[2].Color = Color.White;
-                    quad[3].Color = Color.White;
+                    quad[0].Color = Color.White * lightColor;
+                    quad[1].Color = Color.White * lightColor;
+                    quad[2].Color = Color.White * lightColor;
+                    quad[3].Color = Color.White * lightColor;
 
                     quad[0].TexCoords = new Vector2f(tu * tileSize, tv * tileSize);
                     quad[1].TexCoords = new Vector2f((tu + 1) * tileSize, tv * tileSize);
@@ -248,6 +323,7 @@ namespace Terraria.world
             if(!IsDirty)
                 return;
 
+            TerrainMap = world.CalculateLight(TerrainMap);
             world.GenerateTerrain(this, ChunkBounds.Left);
             EventManager.CallEvent(EventManager.EventType.TerrainUpdated, ID);
 

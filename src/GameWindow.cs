@@ -16,6 +16,7 @@ namespace Terraria
         public readonly View CameraView;
         public readonly Font Font;
         public readonly int WIDTH, HEIGHT;
+        private Texture TextureAtlas;
 
         public GameWindow()
         {
@@ -26,8 +27,9 @@ namespace Terraria
             this.CameraView = new(new FloatRect(0, 0, WIDTH, HEIGHT));
             SfmlWindow.SetFramerateLimit(120);
 
-            this.Font = new("assets/fonts/times new roman.ttf");
+            this.Font = new("assets/fonts/Andy Bold.ttf");
             Utils.mainWindow = this;
+            TextureAtlas = Blocks.RegisterBlocks();
 
             RegisterEvents();
             Update();
@@ -61,19 +63,18 @@ namespace Terraria
         {
             int secondsSinceEpoch = (int)(DateTime.UtcNow - new DateTime(1970, 1, 1)).TotalSeconds;
 
-            Texture tileset = new Texture("assets/sprites/texture_atlas.png");
-            WorldGenerator world = new(tileset, 0.02f, 20, secondsSinceEpoch);
+            WorldGenerator world = new(TextureAtlas, 0.02f, 20, secondsSinceEpoch);
             List<Chunk> chunks = [];
             List<VertexArray> terrainMeshes = [];
             for (int x = 0; x < 50; x++)
             {
-                chunks.Add(world.GenerateCaves(world.GenerateNoise(x * Constants.CHUNK_SIZE.X), x * Constants.CHUNK_SIZE.X));
+                chunks.Add(world.CalculateLight(world.GenerateCaves(world.GenerateNoise(x * Constants.CHUNK_SIZE.X), x * Constants.CHUNK_SIZE.X)));
             }
             foreach (var chunk in chunks)
             {
                 terrainMeshes.Insert(chunk.ID, world.GenerateTerrain(chunk, chunk.ChunkBounds.Left));
             }
-            RenderStates states = new(tileset);
+            RenderStates states = new(TextureAtlas);
 
             int SpawnPos = Constants.CHUNK_SIZE.X * Constants.BLOCK_SIZE * 25;
             PlayerCharacter player = new(new Vector2f(SpawnPos, world.GetHeight(SpawnPos) * Constants.BLOCK_SIZE - 24), world);
