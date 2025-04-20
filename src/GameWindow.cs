@@ -29,7 +29,10 @@ namespace Terraria
 
             this.Font = new("assets/fonts/Andy Bold.ttf");
             Utils.mainWindow = this;
+
             TextureAtlas = Blocks.RegisterBlocks();
+            TextureAtlas.Repeated = true;
+            TextureAtlas.Smooth = false;
 
             RegisterEvents();
             Update();
@@ -66,7 +69,9 @@ namespace Terraria
             WorldGenerator world = new(TextureAtlas, 0.02f, 20, secondsSinceEpoch);
             List<Chunk> chunks = [];
             List<VertexArray> terrainMeshes = [];
-            for (int x = 0; x < 50; x++)
+            VertexArray terrainWalls = world.GenerateBgWalls();
+
+            for (int x = 0; x < Constants.WORLD_SIZE; x++)
             {
                 chunks.Add(world.CalculateLight(world.GenerateCaves(world.GenerateNoise(x * Constants.CHUNK_SIZE.X), x * Constants.CHUNK_SIZE.X)));
             }
@@ -75,6 +80,8 @@ namespace Terraria
                 terrainMeshes.Insert(chunk.ID, world.GenerateTerrain(chunk, chunk.ChunkBounds.Left));
             }
             RenderStates states = new(TextureAtlas);
+            RenderStates tileStates = new(TextureAtlas);
+            tileStates.Shader = world.tileShader;
 
             int SpawnPos = Constants.CHUNK_SIZE.X * Constants.BLOCK_SIZE * 25;
             PlayerCharacter player = new(new Vector2f(SpawnPos, world.GetHeight(SpawnPos) * Constants.BLOCK_SIZE - 24), world);
@@ -170,6 +177,7 @@ namespace Terraria
                 SfmlWindow.DispatchEvents();
                 SfmlWindow.Clear(new Color(135, 206, 235, 255));
                 Renderer.Render(SfmlWindow);
+                SfmlWindow.Draw(terrainWalls, tileStates);
 
                 for (int i = 0; i < terrainMeshes.Count; i++)
                 {

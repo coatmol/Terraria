@@ -1,6 +1,5 @@
 ﻿using SFML.Graphics;
 using SFML.System;
-using SFML.Window;
 using Terraria.game;
 using Terraria.physics;
 using Terraria.utils;
@@ -18,6 +17,7 @@ namespace Terraria.world
         public readonly int Seed;
         public readonly List<Chunk> Chunks = new List<Chunk>();
         private readonly Texture TileSet;
+        public readonly Shader tileShader;
 
         public WorldGenerator(Texture tileset, float frequency, float amplitude, int seed)
         {
@@ -34,6 +34,9 @@ namespace Terraria.world
             CaveNoise.SetFrequency(frequency);
             CaveNoise.SetFractalType(FastNoiseLite.FractalType.FBm);
             CaveNoise.SetFractalOctaves(3);
+
+            if(!Shader.IsAvailable) throw new NotSupportedException("Shaders not supported");
+            tileShader = new Shader(null, null, "assets/shaders/tile-frag.glsl");
 
             this.TileSet = tileset;
         }
@@ -179,8 +182,7 @@ namespace Terraria.world
         public VertexArray GenerateTerrain(Chunk terrain, int offset = 0)
         {
             VertexArray vertices = new(PrimitiveType.Quads);
-            int tileSize = Constants.BLOCK_SIZE;
-            int tileSetWidth = (int)(TileSet.Size.X / tileSize);
+            int tileSetWidth = (int)(TileSet.Size.X / Constants.BLOCK_SIZE);
 
             for (int x = 0; x < Width; x++)
             {
@@ -201,20 +203,20 @@ namespace Terraria.world
 
                     Vertex[] quad = new Vertex[4];
 
-                    quad[0].Position = new Vector2f(x * tileSize + offset, y * tileSize);
-                    quad[1].Position = new Vector2f((x + 1) * tileSize + offset, y * tileSize);
-                    quad[2].Position = new Vector2f((x + 1) * tileSize + offset, (y + 1) * tileSize);
-                    quad[3].Position = new Vector2f(x * tileSize + offset, (y + 1) * tileSize);
+                    quad[0].Position = new Vector2f(x * Constants.BLOCK_SIZE + offset, y * Constants.BLOCK_SIZE);
+                    quad[1].Position = new Vector2f((x + 1) * Constants.BLOCK_SIZE + offset, y * Constants.BLOCK_SIZE);
+                    quad[2].Position = new Vector2f((x + 1) * Constants.BLOCK_SIZE + offset, (y + 1) * Constants.BLOCK_SIZE);
+                    quad[3].Position = new Vector2f(x * Constants.BLOCK_SIZE + offset, (y + 1) * Constants.BLOCK_SIZE);
 
                     quad[0].Color = Color.White * lightColor;
                     quad[1].Color = Color.White * lightColor;
                     quad[2].Color = Color.White * lightColor;
                     quad[3].Color = Color.White * lightColor;
 
-                    quad[0].TexCoords = new Vector2f(tu * tileSize, tv * tileSize);
-                    quad[1].TexCoords = new Vector2f((tu + 1) * tileSize, tv * tileSize);
-                    quad[2].TexCoords = new Vector2f((tu + 1) * tileSize, (tv + 1) * tileSize);
-                    quad[3].TexCoords = new Vector2f(tu * tileSize, (tv + 1) * tileSize);
+                    quad[0].TexCoords = new Vector2f(tu * Constants.BLOCK_SIZE, tv * Constants.BLOCK_SIZE);
+                    quad[1].TexCoords = new Vector2f((tu + 1) * Constants.BLOCK_SIZE, tv * Constants.BLOCK_SIZE);
+                    quad[2].TexCoords = new Vector2f((tu + 1) * Constants.BLOCK_SIZE, (tv + 1) * Constants.BLOCK_SIZE);
+                    quad[3].TexCoords = new Vector2f(tu * Constants.BLOCK_SIZE, (tv + 1) * Constants.BLOCK_SIZE);
 
                     foreach (var vertex in quad)
                     {
@@ -226,6 +228,93 @@ namespace Terraria.world
             terrain.Vertices = vertices;
             return vertices;
         }
+        
+        public VertexArray GenerateBgWalls()
+        {
+            Block[,] walls = new Block[Constants.CHUNK_SIZE.X * Constants.WORLD_SIZE, Constants.CHUNK_SIZE.Y];
+            for (int x = 0; x < Constants.CHUNK_SIZE.X * Constants.WORLD_SIZE; x++)
+            {
+                int terrainHeight = GetHeight(x);
+
+                for (int y = 0; y < Height; y++)
+                {
+                    if (y < terrainHeight)
+                    {
+                        walls[x, y] = Blocks.GetBlock("Air");
+                    }
+                    else
+                    {
+                        walls[x, y] = Blocks.GetBlock("DirtBG");
+                    }
+                }
+            }
+            return GenerateBgWalls(walls);
+        }
+
+        public VertexArray GenerateBgWalls(Block[,] walls)
+        {
+            int W = walls.GetLength(0), H = walls.GetLength(1);
+            bool[,] merged = new bool[W, H];
+            var mesh = new VertexArray(PrimitiveType.Quads);
+
+            for (int x = 0; x < W; ++x)
+                for (int y = 0; y < H; ++y)
+                {
+                    if (merged[x, y] || !walls[x, y].isBg)
+                        continue;
+
+                    int tileId = walls[x, y].id;
+
+                    // — Greedy expand width —
+                    int maxW = 1;
+                    while (x + maxW < W
+                        && !merged[x + maxW, y]
+                        && walls[x + maxW, y].id == tileId)
+                        maxW++;
+
+                    // — Greedy expand height —
+                    int maxH = 1;
+                    bool ok = true;
+                    while (y + maxH < H && ok)
+                    {
+                        for (int dx = 0; dx < maxW; dx++)
+                        {
+                            if (merged[x + dx, y + maxH]
+                             || walls[x + dx, y + maxH].id != tileId)
+                            {
+                                ok = false; break;
+                            }
+                        }
+                        if (ok) maxH++;
+                    }
+
+                    // — Mark merged tiles —
+                    for (int dy = 0; dy < maxH; dy++)
+                        for (int dx = 0; dx < maxW; dx++)
+                            merged[x + dx, y + dy] = true;
+
+                    tileShader.SetUniform("uTexture", TileSet);
+                    tileShader.SetUniform("uTileIndex", tileId);
+                    tileShader.SetUniform("uAtlasSize", new Vector2f(TileSet.Size.X, TileSet.Size.Y));
+
+                    float x1 = x * Constants.BLOCK_SIZE;
+                    float y1 = y * Constants.BLOCK_SIZE;
+                    float x2 = (x + maxW) * Constants.BLOCK_SIZE;
+                    float y2 = (y + maxH) * Constants.BLOCK_SIZE;
+
+                    Vertex[] quad =
+                    {
+                        new Vertex(new Vector2f(x1, y1), Color.White, new Vector2f(x1, y1)),
+                        new Vertex(new Vector2f(x2, y1), Color.White, new Vector2f(x2 + maxW, y1)),
+                        new Vertex(new Vector2f(x2, y2), Color.White, new Vector2f(x2 + maxW, y2 + maxH)),
+                        new Vertex(new Vector2f(x1, y2), Color.White, new Vector2f(x1, y2 + maxH)),
+                    };
+                    foreach (var v in quad) mesh.Append(v);
+                }
+
+            return mesh;
+        }
+
 
         public Chunk? GetChunkFromPosition(Vector2f pos)
         {
@@ -295,7 +384,7 @@ namespace Terraria.world
                     return null;
 
                 var tile = chunk.TerrainMap[localX, localY];
-                if (tile.id != -1)
+                if (tile.id != -1 || tile.isBg)
                     return new Vector2i(mapX, mapY);
             }
 
@@ -436,7 +525,7 @@ namespace Terraria.world
             {
                 for (int tx = 0; tx < tileWidth; tx++)
                 {
-                    if (processed[tx, ty] || TerrainMap[tx, ty] == Blocks.GetBlock("Air"))
+                    if (processed[tx, ty] || TerrainMap[tx, ty].collisionType == CollisionType.None)
                         continue;
 
                     int rectWidth = 1;

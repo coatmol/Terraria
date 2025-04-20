@@ -78,6 +78,7 @@ namespace Terraria.game
         public CollisionType collisionType { get; set; }
         public int lightLevel { get; set; } = 1;
         public bool isTransparent { get; set; } = false;
+        public bool isBg { get; set; } = false;
         public int lightSource { get; set; } = 0;
 
         public static bool operator ==(Block a, Block b)

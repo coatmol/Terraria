@@ -1,0 +1,7 @@
+{
+  "id": 3,
+  "name": "DirtBG",
+  "collisionType": 0,
+  "isTransparent": true,
+  "isBg":  true
+}
