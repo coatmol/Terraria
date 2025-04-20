@@ -26,14 +26,15 @@ namespace Terraria.world
             this.Seed = seed;
 
             this.WorldNoise = new(seed);
-            WorldNoise.SetNoiseType(FastNoiseLite.NoiseType.OpenSimplex2);
-            WorldNoise.SetFrequency(frequency / 2f);
-            WorldNoise.SetFractalType(FastNoiseLite.FractalType.DomainWarpProgressive);
+            WorldNoise.SetNoiseType(FastNoiseLite.NoiseType.Cellular);
+            WorldNoise.SetFrequency(frequency);
+            WorldNoise.SetFractalType(FastNoiseLite.FractalType.FBm);
+            WorldNoise.SetFractalOctaves(15);
             this.CaveNoise = new(seed);
             CaveNoise.SetNoiseType(FastNoiseLite.NoiseType.Cellular);
             CaveNoise.SetFrequency(frequency);
             CaveNoise.SetFractalType(FastNoiseLite.FractalType.FBm);
-            CaveNoise.SetFractalOctaves(3);
+            CaveNoise.SetFractalOctaves(5);
 
             if(!Shader.IsAvailable) throw new NotSupportedException("Shaders not supported");
             tileShader = new Shader(null, null, "assets/shaders/tile-frag.glsl");
@@ -43,9 +44,9 @@ namespace Terraria.world
 
         public int GetHeight(int x, int offset = 0)
         {
-            float noiseValue = MathF.Pow(WorldNoise.GetNoise(x + offset, 0) * 1.4f, 4);
-            float ridge = -1 * MathF.Abs(noiseValue);
-            float normalized = (ridge + 1) / 2.0f;
+            float noiseValue = MathF.Pow(WorldNoise.GetNoise(x + offset, 0) * 1.35f, 4);
+            float ridge = 1 * MathF.Abs(noiseValue);
+            float normalized = (noiseValue + 1) / 2.0f;
             int terrainHeight = (int)(normalized * Amplitude) + (Height / 2 - (int)(Amplitude / 2));
             return terrainHeight;
         }
@@ -98,8 +99,15 @@ namespace Terraria.world
 
                     float caveValue = CaveNoise.GetNoise(x + offset, y);
                     float worldValue = WorldNoise.GetNoise(x + offset, y);
-                    float finalValue = Utils.LerpF(caveValue, worldValue, 0.5f);
+                    float finalValue = Utils.LerpF(caveValue, worldValue, 0.75f);
                     float normalized = (finalValue + 1) / 2f;
+
+                    float middleHeight = Height / 2f;
+                    float distanceFromMiddle = MathF.Abs(normalized * Amplitude - middleHeight);
+
+                    float falloff = MathF.Exp(-MathF.Pow(distanceFromMiddle / middleHeight, 2)) * 4;
+
+                    normalized *= falloff;
 
                     newTerrain[x, y] = (normalized > 0.1f) ? chunk.TerrainMap[x, y] : Blocks.GetBlock("Air");
                 }
@@ -117,19 +125,22 @@ namespace Terraria.world
 
         public Block[,] CalculateLight(Block[,] terrain)
         {
+            Queue<Vector2i> lightQueue = new Queue<Vector2i>();
+            Vector2i[] neighborOffsets = { new(-1, 0), new(1, 0), new(0, -1), new(0, 1) };
+
             #region Light Reset
             for (int x = 0; x < Constants.CHUNK_SIZE.X; x++)
             {
                 for (int y = 0; y < Constants.CHUNK_SIZE.Y; y++)
                 {
-                    terrain[x, y].lightLevel = 1;
+                    terrain[x, y].lightLevel = terrain[x, y].lightSource;
+                    if (terrain[x, y].lightSource > 1)
+                    {
+                        lightQueue.Enqueue(new Vector2i(x, y));
+                    }
                 }
             }
             #endregion
-
-            Queue<Vector2i> lightQueue = new Queue<Vector2i>();
-            Vector2i[] neighborOffsets = { new(-1, 0), new(1, 0), new(0, -1), new(0, 1) };
-
             #region Surface Illumination
             int[] heightMap = new int[Constants.CHUNK_SIZE.X];
             for (int x = 0; x < Constants.CHUNK_SIZE.X; x++)
@@ -163,6 +174,15 @@ namespace Terraria.world
                         Block neighborBlock = terrain[neighborPos.X, neighborPos.Y];
                         int newLightLevel = currentBlock.lightLevel - 1;
                         if (!neighborBlock.isTransparent)
+                        {
+                            if (neighborBlock.lightLevel < newLightLevel)
+                            {
+                                neighborBlock.lightLevel = newLightLevel;
+                                terrain[neighborPos.X, neighborPos.Y] = neighborBlock;
+                                processed.Add(neighborPos);
+                                lightQueue.Enqueue(neighborPos);
+                            }
+                        } else
                         {
                             if (neighborBlock.lightLevel < newLightLevel)
                             {
@@ -393,12 +413,12 @@ namespace Terraria.world
 
 
 
-        public void PlaceBlock(Vector2f pos)
+        public void PlaceBlock(Vector2f pos, Block block)
         {
             Chunk? chunk = GetChunkFromPosition(pos);
             if (chunk == null)
                 return;
-            chunk.PlaceBlock(pos);
+            chunk.PlaceBlock(pos, block);
         }
 
         public void RemoveBlock(Vector2f pos)
@@ -446,7 +466,7 @@ namespace Terraria.world
             return ChunkBounds.Intersects(playerBB);
         }
 
-        public void PlaceBlock(Vector2f pos)
+        public void PlaceBlock(Vector2f pos, Block block)
         {
             int x = (int)(pos.X - ChunkBounds.Left) / Constants.BLOCK_SIZE;
             int y = (int)(pos.Y - ChunkBounds.Top) / Constants.BLOCK_SIZE;
@@ -456,7 +476,7 @@ namespace Terraria.world
             if (TerrainMap[x, y] != Blocks.GetBlock("Air"))
                 return;
 
-            TerrainMap[x, y] = Blocks.GetBlock("Stone");
+            TerrainMap[x, y] = block;
             IsDirty = true;
         }
 

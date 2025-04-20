@@ -1,0 +1,7 @@
+{
+  "id": 4,
+  "name": "Torch",
+  "collisionType": 0,
+  "isTransparent": true,
+  "lightSource": 15
+}

@@ -79,7 +79,7 @@ namespace Terraria.game
         public int lightLevel { get; set; } = 1;
         public bool isTransparent { get; set; } = false;
         public bool isBg { get; set; } = false;
-        public int lightSource { get; set; } = 0;
+        public int lightSource { get; set; } = 1;
 
         public static bool operator ==(Block a, Block b)
         {

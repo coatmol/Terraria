@@ -169,7 +169,7 @@ namespace Terraria
                 else if (Mouse.IsButtonPressed(Mouse.Button.Left) && blockSelectionPos != null)
                     world.RemoveBlock((Vector2f)blockSelectionPos * Constants.BLOCK_SIZE);
                 if (Mouse.IsButtonPressed(Mouse.Button.Right))
-                    world.PlaceBlock(MousePos);
+                    world.PlaceBlock(MousePos, Blocks.GetBlock("Torch"));
 
                 player.Update(deltaTime, currentChunkColliders);
 
