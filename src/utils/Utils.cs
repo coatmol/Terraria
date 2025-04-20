@@ -72,5 +72,10 @@ namespace Terraria.utils
         {
             return a * (1 - t) + b * t;
         }
+
+        public static Vector2i AddToVector(Vector2i vec, int n)
+        {
+            return new Vector2i(vec.X + n, vec.Y + n);
+        }
     }
 }

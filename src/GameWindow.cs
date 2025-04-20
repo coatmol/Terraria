@@ -73,7 +73,7 @@ namespace Terraria
 
             for (int x = 0; x < Constants.WORLD_SIZE; x++)
             {
-                chunks.Add(world.CalculateLight(world.GenerateCaves(world.GenerateNoise(x * Constants.CHUNK_SIZE.X), x * Constants.CHUNK_SIZE.X)));
+                chunks.Add(world.GenerateLightmap(world.GenerateCaves(world.GenerateNoise(x * Constants.CHUNK_SIZE.X), x * Constants.CHUNK_SIZE.X)));
             }
             foreach (var chunk in chunks)
             {

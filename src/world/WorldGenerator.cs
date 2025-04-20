@@ -117,14 +117,15 @@ namespace Terraria.world
             return chunk;
         }
 
-        public Chunk CalculateLight(Chunk chunk)
+        public Chunk GenerateLightmap(Chunk chunk)
         {
-            chunk.TerrainMap = CalculateLight(chunk.TerrainMap);
+            chunk.TerrainMap = CalculateLight(chunk);
             return chunk;
         }
 
-        public Block[,] CalculateLight(Block[,] terrain)
+        public Block[,] CalculateLight(Chunk chunk)
         {
+            Block[,] terrain = chunk.TerrainMap;
             Queue<Vector2i> lightQueue = new Queue<Vector2i>();
             Vector2i[] neighborOffsets = { new(-1, 0), new(1, 0), new(0, -1), new(0, 1) };
 
@@ -193,6 +194,48 @@ namespace Terraria.world
             }
             #endregion
             return terrain;
+        }
+
+        public void CalculateLight(Chunk chunk, Vector2i lightSourcePosition)
+        {
+            Block[,] terrain = chunk.TerrainMap;
+            Queue<Vector2i> lightQueue = new Queue<Vector2i>();
+            Vector2i[] neighborOffsets = { new(-1, 0), new(1, 0), new(0, -1), new(0, 1) };
+            bool[,] processed = new bool[Constants.CHUNK_SIZE.X, Constants.CHUNK_SIZE.Y];
+
+            lightQueue.Enqueue(lightSourcePosition);
+
+            while (lightQueue.Count > 0)
+            {
+                Vector2i pos = lightQueue.Dequeue();
+                Block currentBlock = terrain[pos.X, pos.Y];
+                Vector2i neighborPos = new Vector2i();
+
+                foreach (var offset in neighborOffsets)
+                {
+                    neighborPos.X = pos.X + offset.X;
+                    neighborPos.Y = pos.Y + offset.Y;
+
+                    if (neighborPos.X >= Constants.CHUNK_SIZE.X || neighborPos.Y >= Constants.CHUNK_SIZE.Y || neighborPos.X < 0 || neighborPos.Y < 0)
+                        continue;
+
+                    if (processed[neighborPos.X, neighborPos.Y])
+                        continue;
+
+                    Block neighborBlock = terrain[neighborPos.X, neighborPos.Y];
+                    int newLightLevel = currentBlock.lightLevel - 1;
+                    if (neighborBlock.lightLevel < newLightLevel)
+                    {
+                        neighborBlock.lightLevel = newLightLevel;
+                        terrain[neighborPos.X, neighborPos.Y] = neighborBlock;
+                        processed[neighborPos.X, neighborPos.Y] = true;
+                        lightQueue.Enqueue(neighborPos);
+                    }
+                }
+            }
+
+            GenerateTerrain(chunk, chunk.ChunkBounds.Left);
+            EventManager.CallEvent(EventManager.EventType.TerrainUpdated, chunk.ID);
         }
 
         public VertexArray GenerateTerrain(Chunk terrain, int offset = 0)
@@ -432,7 +475,7 @@ namespace Terraria.world
         public VertexArray Vertices;
         public readonly IntRect ChunkBounds;
         public int ID;
-        private bool IsDirty = false;
+        public bool IsDirty = false;
 
         public Chunk(Block[,] terrainMap, IntRect chunkBounds)
         {
@@ -495,7 +538,7 @@ namespace Terraria.world
             if(!IsDirty)
                 return;
 
-            TerrainMap = world.CalculateLight(TerrainMap);
+            TerrainMap = world.CalculateLight(this);
             world.GenerateTerrain(this, ChunkBounds.Left);
             EventManager.CallEvent(EventManager.EventType.TerrainUpdated, ID);
 
