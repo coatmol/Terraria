@@ -129,69 +129,65 @@ namespace Terraria.world
             Vector2i[] neighborOffsets = { new(-1, 0), new(1, 0), new(0, -1), new(0, 1) };
 
             #region Light Reset
-            for (int x = 0; x < Constants.CHUNK_SIZE.X; x++)
-            {
+            Parallel.For(0, Constants.CHUNK_SIZE.X, x => {
                 for (int y = 0; y < Constants.CHUNK_SIZE.Y; y++)
                 {
                     terrain[x, y].lightLevel = terrain[x, y].lightSource;
                     if (terrain[x, y].lightSource > 1)
                     {
-                        lightQueue.Enqueue(new Vector2i(x, y));
+                        lock (lightQueue)
+                        {
+                            lightQueue.Enqueue(new Vector2i(x, y));
+                        }
                     }
                 }
-            }
+            });
             #endregion
             #region Surface Illumination
             int[] heightMap = new int[Constants.CHUNK_SIZE.X];
-            for (int x = 0; x < Constants.CHUNK_SIZE.X; x++)
-            {
+            Parallel.For(0, Constants.CHUNK_SIZE.X, x => {
                 for (int y = 0; y < Constants.CHUNK_SIZE.Y; y++)
                 {
                     if (!terrain[x, y].isTransparent)
                     {
                         heightMap[x] = y;
                         terrain[x, y].lightLevel = Constants.MAX_LIGHT_LEVEL;
-                        lightQueue.Enqueue(new Vector2i(x, y));
+                        lock (lightQueue)
+                        {
+                            lightQueue.Enqueue(new Vector2i(x, y));
+                        }
                         break;
                     }
                 }
-            }
+            });
             #endregion
             #region Light Propagation
-            List<Vector2i> processed = new List<Vector2i>();
+            bool[,] processed = new bool[Constants.CHUNK_SIZE.X, Constants.CHUNK_SIZE.Y];
             while (lightQueue.Count > 0)
             {
                 Vector2i pos = lightQueue.Dequeue();
                 Block currentBlock = terrain[pos.X, pos.Y];
+                Vector2i neighborPos = new Vector2i();
 
                 foreach (var offset in neighborOffsets)
                 {
-                    Vector2i neighborPos = pos + offset;
-                    if (processed.Contains(neighborPos))
+                    neighborPos.X = pos.X + offset.X;
+                    neighborPos.Y = pos.Y + offset.Y;
+
+                    if (neighborPos.X >= Constants.CHUNK_SIZE.X || neighborPos.Y >= Constants.CHUNK_SIZE.Y || neighborPos.X < 0 || neighborPos.Y < 0)
                         continue;
-                    if (neighborPos.X < Constants.CHUNK_SIZE.X && neighborPos.Y < Constants.CHUNK_SIZE.Y && neighborPos.X >= 0 && neighborPos.Y >= 0)
+
+                    if (processed[neighborPos.X, neighborPos.Y])
+                        continue;
+
+                    Block neighborBlock = terrain[neighborPos.X, neighborPos.Y];
+                    int newLightLevel = currentBlock.lightLevel - 1;
+                    if (neighborBlock.lightLevel < newLightLevel)
                     {
-                        Block neighborBlock = terrain[neighborPos.X, neighborPos.Y];
-                        int newLightLevel = currentBlock.lightLevel - 1;
-                        if (!neighborBlock.isTransparent)
-                        {
-                            if (neighborBlock.lightLevel < newLightLevel)
-                            {
-                                neighborBlock.lightLevel = newLightLevel;
-                                terrain[neighborPos.X, neighborPos.Y] = neighborBlock;
-                                processed.Add(neighborPos);
-                                lightQueue.Enqueue(neighborPos);
-                            }
-                        } else
-                        {
-                            if (neighborBlock.lightLevel < newLightLevel)
-                            {
-                                neighborBlock.lightLevel = newLightLevel;
-                                terrain[neighborPos.X, neighborPos.Y] = neighborBlock;
-                                processed.Add(neighborPos);
-                                lightQueue.Enqueue(neighborPos);
-                            }
-                        }
+                        neighborBlock.lightLevel = newLightLevel;
+                        terrain[neighborPos.X, neighborPos.Y] = neighborBlock;
+                        processed[neighborPos.X, neighborPos.Y] = true;
+                        lightQueue.Enqueue(neighborPos);
                     }
                 }
             }
@@ -549,7 +545,7 @@ namespace Terraria.world
                         continue;
 
                     int rectWidth = 1;
-                    while (tx + rectWidth < tileWidth && !processed[tx + rectWidth, ty] && TerrainMap[tx + rectWidth, ty] != Blocks.GetBlock("Air"))
+                    while (tx + rectWidth < tileWidth && !processed[tx + rectWidth, ty] && TerrainMap[tx + rectWidth, ty].collisionType != CollisionType.None)
                     {
                         rectWidth++;
                     }
@@ -560,7 +556,7 @@ namespace Terraria.world
                     {
                         for (int i = 0; i < rectWidth; i++)
                         {
-                            if (processed[tx + i, ty + rectHeight] || TerrainMap[tx + i, ty + rectHeight] == Blocks.GetBlock("Air"))
+                            if (processed[tx + i, ty + rectHeight] || TerrainMap[tx + i, ty + rectHeight].collisionType == CollisionType.None)
                             {
                                 done = true;
                                 break;
