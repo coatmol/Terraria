@@ -70,8 +70,6 @@ namespace Terraria.render
 
         public void SetTexture(Texture t)
         {
-            right = t.Size.X;
-            bottom = t.Size.Y;
             texture = t;
             isDirty = true;
         }

@@ -20,6 +20,8 @@ namespace Terraria.render
 
         public static bool Button(Button button)
         {
+            window.Draw(button);
+
             if(button.GetRect().Contains(Utils.GetLocalMousePos()) && Mouse.IsButtonPressed(Mouse.Button.Left))
                 return true;
 

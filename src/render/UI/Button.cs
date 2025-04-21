@@ -10,7 +10,7 @@ namespace Terraria.render.UI
 
         public Button(Texture texture, string text) : base(texture)
         {
-            this.text = new Text(text, Constants.MainFont);
+            this.text = new Text(text, Constants.MainFont) { FillColor = Color.Black };
             FixText();
             this.SetBorder(new System.Numerics.Vector4(4, 4, 4, 4));
         }
