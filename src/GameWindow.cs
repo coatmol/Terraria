@@ -111,7 +111,7 @@ namespace Terraria
             bool Freecam = false;
 
             Sprite BlockSelection = new Sprite(new Texture("assets/sprites/block_select.png")) { Color = new Color(255, 255, 255, 100)};
-            Button button = new(new Texture("assets/ui/Button.png"), "New World");
+            Button button = new(UiRenderer.UIAssets["ButtonUp"], "New World");
             button.SetBorder(new(4, 4, 4, 4));
             button.SetSize(new(64, 24));
             button.Scale = new Vector2f(4, 4);
@@ -232,9 +232,9 @@ namespace Terraria
                 SfmlWindow.Draw(fpsText);
 
                 if (UiRenderer.Button(button))
-                    button.SetTexture(new Texture("assets/ui/ButtonDown.png"));
+                    button.SetTexture(UiRenderer.UIAssets["ButtonDown"]);
                 else
-                    button.SetTexture(new Texture("assets/ui/Button.png"));
+                    button.SetTexture(UiRenderer.UIAssets["ButtonUp"]);
 
 
                     SfmlWindow.Display();

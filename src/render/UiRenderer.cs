@@ -9,6 +9,11 @@ namespace Terraria.render
     static class UiRenderer
     {
         private static RenderWindow window;
+        public static Dictionary<string, Texture> UIAssets = new Dictionary<string, Texture>() {
+            {"ButtonUp", new Texture("assets/ui/Button.png") },
+            { "ButtonDown", new Texture("assets/ui/ButtonDown.png") },
+            { "ButtonSelected", new Texture("assets/ui/ButtonSelected.png") }
+        };
 
         public static void Init(RenderWindow w)
         {
