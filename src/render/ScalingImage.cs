@@ -9,7 +9,7 @@ namespace Terraria.render
     public class ScalingImage : Transformable, Drawable
     {
         protected Texture texture;
-        private uint left, top, right, bottom, width, height;
+        protected uint left, top, right, bottom, width, height;
         protected VertexArray vertices;
         protected bool isDirty = true;
         public Color color = Color.White;
@@ -19,6 +19,8 @@ namespace Terraria.render
             this.texture = texture;
             this.right = texture.Size.X;
             this.bottom = texture.Size.Y;
+            this.width = texture.Size.X;
+            this.height = texture.Size.Y;
             this.vertices = new VertexArray(PrimitiveType.TriangleStrip, 24);
         }
 
@@ -40,6 +42,11 @@ namespace Terraria.render
         public Vector2u GetSize()
         {
             return new Vector2u(width, height);
+        }
+
+        public FloatRect GetRect()
+        {
+            return new FloatRect(Position, new(width * Scale.X, height * Scale.Y));
         }
 
         public void SetSize(Vector2u size)

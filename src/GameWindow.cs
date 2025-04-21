@@ -109,7 +109,10 @@ namespace Terraria
             bool Freecam = false;
 
             Sprite BlockSelection = new Sprite(new Texture("assets/sprites/block_select.png")) { Color = new Color(255, 255, 255, 100)};
-
+            Button button = new(new Texture("assets/ui/ButtonSelected.png"), "New World");
+            button.SetBorder(new(4, 4, 4, 4));
+            button.SetSize(new(64, 24));
+            button.Scale = new Vector2f(4, 4);
 
             EventManager.SubcribeToEvent(EventManager.EventType.KeyPressed, (e) =>
             {
@@ -217,10 +220,14 @@ namespace Terraria
                     SfmlWindow.Draw(new Text(player.Velocity.X != 0 ? player.Velocity.ToString() : player.Position.ToString(), Constants.MainFont) { Position = (player.Position + player.Size / 2) + player.Velocity, CharacterSize = 12, FillColor = Color.Black });
                 }
 
+                if (UiRenderer.Button(button))
+                    Console.WriteLine("Button pressed");
+
                 SfmlWindow.Draw(player);
 
                 SfmlWindow.SetView(SfmlWindow.DefaultView);
                 SfmlWindow.Draw(fpsText);
+                SfmlWindow.Draw(button);
 
                 SfmlWindow.Display();
 

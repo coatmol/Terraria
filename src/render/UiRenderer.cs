@@ -1,5 +1,8 @@
 ﻿using SFML.Graphics;
 using SFML.System;
+using SFML.Window;
+using Terraria.render.UI;
+using Terraria.utils;
 
 namespace Terraria.render
 {
@@ -15,9 +18,10 @@ namespace Terraria.render
                 Console.WriteLine("WARNING: UI Renderer already initialized.");
         }
 
-        public static bool Button(Vector2f pos)
+        public static bool Button(Button button)
         {
-
+            if(button.GetRect().Contains(Utils.GetLocalMousePos()) && Mouse.IsButtonPressed(Mouse.Button.Left))
+                return true;
 
             return false;
         }

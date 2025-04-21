@@ -1,10 +1,21 @@
 ﻿using SFML.System;
+using SFML.Window;
 
 namespace Terraria.utils
 {
     class Utils
     {
         public static GameWindow mainWindow;
+
+        public static Vector2f GetGlobalMousePos()
+        {
+            return mainWindow.SfmlWindow.MapPixelToCoords(Mouse.GetPosition(mainWindow.SfmlWindow), mainWindow.CameraView);
+        }
+
+        public static Vector2i GetLocalMousePos()
+        {
+            return Mouse.GetPosition(mainWindow.SfmlWindow);
+        }
 
         public static Vector2f DivideVectors(Vector2f a, Vector2f b)
         {
