@@ -221,7 +221,6 @@ namespace Terraria
 
                 SfmlWindow.SetView(SfmlWindow.DefaultView);
                 SfmlWindow.Draw(fpsText);
-                SfmlWindow.Draw(button);
 
                 SfmlWindow.Display();
 
