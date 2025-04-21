@@ -8,10 +8,10 @@ namespace Terraria.render
 {
     public class ScalingImage : Transformable, Drawable
     {
-        private Texture texture;
+        protected Texture texture;
         private uint left, top, right, bottom, width, height;
-        private VertexArray vertices;
-        private bool isDirty = true;
+        protected VertexArray vertices;
+        protected bool isDirty = true;
         public Color color = Color.White;
 
         public ScalingImage(Texture texture)
@@ -103,7 +103,7 @@ namespace Terraria.render
             bottom = (uint)border.W;
         }
 
-        private void UpdateVertices()
+        protected void UpdateVertices()
         {
             uint[] triangleStripVertexOrder = {0, 4, 1, 5, 2, 6, 3, 7, 7, 11, 6, 10, 5, 9, 4, 8, 8, 12, 9, 13, 10, 14, 11, 15};
 
@@ -132,7 +132,6 @@ namespace Terraria.render
                 for (uint i = 0; i < 24; i++)
                 {
                     vertices[i] = new Vertex(vertexPositions[triangleStripVertexOrder[i]], color, vertexTexCoords[triangleStripVertexOrder[i]]);
-                    Console.WriteLine(vertices[i]);
                 }
             }
         }

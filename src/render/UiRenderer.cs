@@ -15,7 +15,7 @@ namespace Terraria.render
                 Console.WriteLine("WARNING: UI Renderer already initialized.");
         }
 
-        public static bool Button(String text, Vector2f pos, String image="assets/ui/button.png")
+        public static bool Button(Vector2f pos)
         {
 
 

@@ -8,6 +8,7 @@ using Terraria.utils;
 using Terraria.world;
 using Terraria.game;
 using System.Numerics;
+using Terraria.render.UI;
 
 namespace Terraria
 {
@@ -15,7 +16,6 @@ namespace Terraria
     {
         public readonly RenderWindow SfmlWindow;
         public readonly View CameraView;
-        public readonly Font Font;
         public readonly int WIDTH, HEIGHT;
         private Texture TextureAtlas;
 
@@ -28,7 +28,6 @@ namespace Terraria
             this.CameraView = new(new FloatRect(0, 0, WIDTH, HEIGHT));
             SfmlWindow.SetFramerateLimit(120);
 
-            this.Font = new("assets/fonts/Andy Bold.ttf");
             Utils.mainWindow = this;
 
             TextureAtlas = Blocks.RegisterBlocks();
@@ -99,7 +98,7 @@ namespace Terraria
             stopwatch.Start();
             int frameCount = 0;
             double fps = 0.0;
-            Text fpsText = new("120 FPS", Font);
+            Text fpsText = new("120 FPS", Constants.MainFont);
 
             Vector2f MousePos = new();
 
@@ -110,6 +109,7 @@ namespace Terraria
             bool Freecam = false;
 
             Sprite BlockSelection = new Sprite(new Texture("assets/sprites/block_select.png")) { Color = new Color(255, 255, 255, 100)};
+
 
             EventManager.SubcribeToEvent(EventManager.EventType.KeyPressed, (e) =>
             {
@@ -214,13 +214,14 @@ namespace Terraria
                     playerLookVector.Draw(SfmlWindow);
                     playerRayDir.Draw(SfmlWindow);
                     playerMouseDir.Draw(SfmlWindow);
-                    SfmlWindow.Draw(new Text(player.Velocity.X != 0 ? player.Velocity.ToString() : player.Position.ToString(), Font) { Position = (player.Position + player.Size / 2) + player.Velocity, CharacterSize = 12, FillColor = Color.Black });
+                    SfmlWindow.Draw(new Text(player.Velocity.X != 0 ? player.Velocity.ToString() : player.Position.ToString(), Constants.MainFont) { Position = (player.Position + player.Size / 2) + player.Velocity, CharacterSize = 12, FillColor = Color.Black });
                 }
 
                 SfmlWindow.Draw(player);
 
                 SfmlWindow.SetView(SfmlWindow.DefaultView);
                 SfmlWindow.Draw(fpsText);
+                SfmlWindow.Draw(button);
 
                 SfmlWindow.Display();
 

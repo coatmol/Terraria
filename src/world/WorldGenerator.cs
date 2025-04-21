@@ -158,6 +158,24 @@ namespace Terraria.world
                             lightQueue.Enqueue(new Vector2i(x, y));
                         }
                         break;
+                    } else
+                    {
+                        if(x - 1 >= 0 && !terrain[x - 1, y].isTransparent)
+                        {
+                            terrain[x - 1, y].lightLevel = Constants.MAX_LIGHT_LEVEL;
+                            lock (lightQueue)
+                            {
+                                lightQueue.Enqueue(new Vector2i(x - 1, y));
+                            }
+                        }
+                        else if (x + 1 < Constants.CHUNK_SIZE.X && !terrain[x + 1, y].isTransparent)
+                        {
+                            terrain[x + 1, y].lightLevel = Constants.MAX_LIGHT_LEVEL;
+                            lock (lightQueue)
+                            {
+                                lightQueue.Enqueue(new Vector2i(x + 1, y));
+                            }
+                        }
                     }
                 }
             });
