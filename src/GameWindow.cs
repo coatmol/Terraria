@@ -7,6 +7,7 @@ using Terraria.physics;
 using Terraria.utils;
 using Terraria.world;
 using Terraria.game;
+using System.Numerics;
 
 namespace Terraria
 {
@@ -80,8 +81,7 @@ namespace Terraria
                 terrainMeshes.Insert(chunk.ID, world.GenerateTerrain(chunk, chunk.ChunkBounds.Left));
             }
             RenderStates states = new(TextureAtlas);
-            RenderStates tileStates = new(TextureAtlas);
-            tileStates.Shader = world.tileShader;
+            RenderStates tileStates = new(TextureAtlas) { Shader = world.tileShader};
 
             int SpawnPos = Constants.CHUNK_SIZE.X * Constants.BLOCK_SIZE * 25;
             PlayerCharacter player = new(new Vector2f(SpawnPos, world.GetHeight(SpawnPos) * Constants.BLOCK_SIZE - 24), world);
