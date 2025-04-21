@@ -39,7 +39,7 @@ namespace Terraria.game
             {
                 if (e.Data is KeyEventArgs keyEvent)
                 {
-                    if (keyEvent.Code == Keyboard.Key.Space && isGrounded)
+                    if (keyEvent.Code == Keyboard.Key.Space && isGrounded && Utils.mainWindow.IsFocused)
                     {
                         Velocity.Y = JUMP_FORCE;
                         isGrounded = false;
@@ -145,28 +145,31 @@ namespace Terraria.game
                 }
             }
 
-            if (Keyboard.IsKeyPressed(Keyboard.Key.A))
+            if (Utils.mainWindow.IsFocused)
             {
-                Velocity.X = Utils.Approach(Velocity.X, -MAX_SPEED, ACCELERATION * dt);
-                if (!isFlipped)
+                if (Keyboard.IsKeyPressed(Keyboard.Key.A))
                 {
-                    FlipTexture();
-                    isFlipped = true;
+                    Velocity.X = Utils.Approach(Velocity.X, -MAX_SPEED, ACCELERATION * dt);
+                    if (!isFlipped)
+                    {
+                        FlipTexture();
+                        isFlipped = true;
+                    }
                 }
-            }
-            if (Keyboard.IsKeyPressed(Keyboard.Key.D))
-            {
-                Velocity.X = Utils.Approach(Velocity.X, MAX_SPEED, ACCELERATION * dt);
-                if (isFlipped)
+                if (Keyboard.IsKeyPressed(Keyboard.Key.D))
                 {
-                    FlipTexture();
-                    isFlipped = false;
+                    Velocity.X = Utils.Approach(Velocity.X, MAX_SPEED, ACCELERATION * dt);
+                    if (isFlipped)
+                    {
+                        FlipTexture();
+                        isFlipped = false;
+                    }
                 }
-            }
-            if (!Keyboard.IsKeyPressed(Keyboard.Key.A) && !Keyboard.IsKeyPressed(Keyboard.Key.D))
-            {
-                if(isGrounded)
-                    Velocity.X = Utils.Approach(Velocity.X, 0, DECELERATION * dt);
+                if (!Keyboard.IsKeyPressed(Keyboard.Key.A) && !Keyboard.IsKeyPressed(Keyboard.Key.D))
+                {
+                    if(isGrounded)
+                        Velocity.X = Utils.Approach(Velocity.X, 0, DECELERATION * dt);
+                }
             }
             Velocity.Y = Utils.Approach(Velocity.Y, TERMINAL_VELOCITY, GRAVITY * dt);
 

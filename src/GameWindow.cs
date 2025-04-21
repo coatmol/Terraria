@@ -18,6 +18,7 @@ namespace Terraria
         public readonly View CameraView;
         public readonly int WIDTH, HEIGHT;
         private Texture TextureAtlas;
+        public bool IsFocused = true;
 
         public GameWindow()
         {
@@ -160,20 +161,23 @@ namespace Terraria
                         break;
                     }
                 }
-                if (Keyboard.IsKeyPressed(Keyboard.Key.E))
-                    CameraView.Zoom(1.05f);
-                if (Keyboard.IsKeyPressed(Keyboard.Key.Q))
-                    CameraView.Zoom(0.9f);
-                if (Keyboard.IsKeyPressed(Keyboard.Key.Escape))
-                    SfmlWindow.Close();
-                if (Keyboard.IsKeyPressed(Keyboard.Key.LShift))
-                    player.Velocity = new Vector2f();
-                if (Mouse.IsButtonPressed(Mouse.Button.Left) && DebugMode && Freecam)
-                    player.Position = MousePos - player.Size / 2;
-                else if (Mouse.IsButtonPressed(Mouse.Button.Left) && blockSelectionPos != null)
-                    world.RemoveBlock((Vector2f)blockSelectionPos * Constants.BLOCK_SIZE);
-                if (Mouse.IsButtonPressed(Mouse.Button.Right))
-                    world.PlaceBlock(MousePos, Blocks.GetBlock("Torch"));
+                if (IsFocused)
+                {
+                    if (Keyboard.IsKeyPressed(Keyboard.Key.E))
+                        CameraView.Zoom(1.05f);
+                    if (Keyboard.IsKeyPressed(Keyboard.Key.Q))
+                        CameraView.Zoom(0.9f);
+                    if (Keyboard.IsKeyPressed(Keyboard.Key.Escape))
+                        SfmlWindow.Close();
+                    if (Keyboard.IsKeyPressed(Keyboard.Key.LShift))
+                        player.Velocity = new Vector2f();
+                    if (Mouse.IsButtonPressed(Mouse.Button.Left) && DebugMode && Freecam)
+                        player.Position = MousePos - player.Size / 2;
+                    else if (Mouse.IsButtonPressed(Mouse.Button.Left) && blockSelectionPos != null)
+                        world.RemoveBlock((Vector2f)blockSelectionPos * Constants.BLOCK_SIZE);
+                    if (Mouse.IsButtonPressed(Mouse.Button.Right))
+                        world.PlaceBlock(MousePos, Blocks.GetBlock("Torch"));
+                }
 
                 player.Update(deltaTime, currentChunkColliders);
 
@@ -261,10 +265,12 @@ namespace Terraria
             };
             SfmlWindow.GainedFocus += (sender, e) =>
             {
+                IsFocused = true;
                 EventManager.CallEvent(EventManager.EventType.WindowGainedFocus, e);
             };
             SfmlWindow.LostFocus += (sender, e) =>
             {
+                IsFocused = false;
                 EventManager.CallEvent(EventManager.EventType.WindowLostFocus, e);
             };
             SfmlWindow.MouseButtonPressed += (sender, e) =>
