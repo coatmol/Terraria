@@ -5,7 +5,7 @@ namespace Terraria.utils
 {
     public static class Constants
     {
-        public static readonly Font MainFont = new Font("assets/fonts/Andy Bold.ttf");
+        public static readonly Font MainFont = new Font("assets/fonts/minecraft-dungeons.ttf");
 
         public const int BLOCK_SIZE = 16;
         public const int WORLD_SIZE = 50;

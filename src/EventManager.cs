@@ -12,6 +12,7 @@
             WindowGainedFocus,
 
             // Input Events
+            Typed,
             KeyPressed,
             KeyReleased,
             MouseButtonPressed,
@@ -22,6 +23,7 @@
             MouseLeft,
 
             // Game Events
+            WorldLoaded,
             TerrainUpdated,
         }
 

@@ -9,6 +9,7 @@ using Terraria.world;
 using Terraria.game;
 using System.Numerics;
 using Terraria.render.UI;
+using ProtoBuf.Meta;
 
 namespace Terraria
 {
@@ -30,10 +31,12 @@ namespace Terraria
             SfmlWindow.SetFramerateLimit(120);
 
             Utils.mainWindow = this;
+            Constants.MainFont.SetSmooth(false);
 
             TextureAtlas = Blocks.RegisterBlocks();
-            TextureAtlas.Repeated = true;
-            TextureAtlas.Smooth = false;
+
+            var serializationModel = RuntimeTypeModel.Default;
+            serializationModel.Add(typeof(IntRect), false).SetSurrogate(typeof(IntRectSurrogate));
 
             UiRenderer.Init(SfmlWindow);
             RegisterEvents();
@@ -69,31 +72,20 @@ namespace Terraria
             int secondsSinceEpoch = (int)(DateTime.UtcNow - new DateTime(1970, 1, 1)).TotalSeconds;
 
             WorldGenerator world = new(TextureAtlas, 0.02f, 20, secondsSinceEpoch);
-            List<Chunk> chunks = [];
-            List<VertexArray> terrainMeshes = [];
+            List<Chunk> chunks = new List<Chunk>();
             VertexArray terrainWalls = world.GenerateBgWalls();
 
             for (int x = 0; x < Constants.WORLD_SIZE; x++)
             {
                 chunks.Add(world.GenerateLightmap(world.GenerateCaves(world.GenerateNoise(x * Constants.CHUNK_SIZE.X), x * Constants.CHUNK_SIZE.X)));
+                world.GenerateTerrain(chunks[x], chunks[x].ChunkBounds.Left);
             }
-            foreach (var chunk in chunks)
-            {
-                terrainMeshes.Insert(chunk.ID, world.GenerateTerrain(chunk, chunk.ChunkBounds.Left));
-            }
+
             RenderStates states = new(TextureAtlas);
-            RenderStates tileStates = new(TextureAtlas) { Shader = world.tileShader};
+            RenderStates tileStates = new(TextureAtlas) { Shader = world.tileShader };
 
             int SpawnPos = Constants.CHUNK_SIZE.X * Constants.BLOCK_SIZE * 25;
             PlayerCharacter player = new(new Vector2f(SpawnPos, world.GetHeight(SpawnPos) * Constants.BLOCK_SIZE - 24), world);
-
-            EventManager.SubcribeToEvent(EventManager.EventType.TerrainUpdated, (e) =>
-            {
-                if (e.Data is int id)
-                {
-                    terrainMeshes[id] = world.Chunks[id].Vertices;
-                }
-            });
 
             Clock clock = new();
             Stopwatch stopwatch = new Stopwatch();
@@ -104,7 +96,7 @@ namespace Terraria
 
             Vector2f MousePos = new();
 
-            Chunk currentChunk = chunks.First();
+            Chunk? currentChunk = null;
             List<Collider> currentChunkColliders = new List<Collider>();
 
             bool DebugMode = false;
@@ -115,6 +107,7 @@ namespace Terraria
             button.SetBorder(new(4, 4, 4, 4));
             button.SetSize(new(64, 24));
             button.Scale = new Vector2f(4, 4);
+
 
             EventManager.SubcribeToEvent(EventManager.EventType.KeyPressed, (e) =>
             {
@@ -132,10 +125,20 @@ namespace Terraria
                 }
             });
 
+            EventManager.SubcribeToEvent(EventManager.EventType.Typed, (e) =>
+            {
+                if (e.Data is TextEventArgs textEvent)
+                {
+                    Console.WriteLine(textEvent.Unicode);
+                }
+            });
+
             while (SfmlWindow.IsOpen)
             {
                 float deltaTime = clock.Restart().AsSeconds();
                 MousePos = SfmlWindow.MapPixelToCoords(Mouse.GetPosition(SfmlWindow), CameraView);
+
+                #region In-World
                 Vector2f? blockSelectionPos = (Vector2f?)world.Raycast(MousePos, player.Position, 6);
                 if(DebugMode && Freecam)
                 {
@@ -161,6 +164,7 @@ namespace Terraria
                         break;
                     }
                 }
+                #region Input
                 if (IsFocused)
                 {
                     if (Keyboard.IsKeyPressed(Keyboard.Key.E))
@@ -177,7 +181,10 @@ namespace Terraria
                         world.RemoveBlock((Vector2f)blockSelectionPos * Constants.BLOCK_SIZE);
                     if (Mouse.IsButtonPressed(Mouse.Button.Right))
                         world.PlaceBlock(MousePos, Blocks.GetBlock("Torch"));
+                    if (Keyboard.IsKeyPressed(Keyboard.Key.LControl) && Keyboard.IsKeyPressed(Keyboard.Key.S))
+                        world.SaveToFile("world.wld");
                 }
+                #endregion
 
                 player.Update(deltaTime, currentChunkColliders);
 
@@ -187,19 +194,20 @@ namespace Terraria
                 Renderer.Render(SfmlWindow);
                 SfmlWindow.Draw(terrainWalls, tileStates);
 
-                for (int i = 0; i < terrainMeshes.Count; i++)
+                for (int i = 0; i < Constants.WORLD_SIZE; i++)
                 {
+                    if(chunks.Count == 0) continue;
+                    Chunk chunk = chunks[i];
                     if(DebugMode)
                     {
-                        Chunk chunk = chunks[i];
                         RectangleShape ChunkOutline = new((Vector2f)chunk.ChunkBounds.Size) { OutlineThickness = 2, FillColor = Color.Transparent, OutlineColor = Color.Black, Position = (Vector2f)chunk.ChunkBounds.Position };
                         SfmlWindow.Draw(ChunkOutline);
                     }
 
-                    if (!chunks[i].IsInView(CameraView))
+                    if (!chunk.IsInView(CameraView))
                         continue;
-                    
-                    SfmlWindow.Draw(terrainMeshes[i], states);
+
+                    SfmlWindow.Draw(chunk.Vertices, states);
                 }
 
                 foreach (var collider in currentChunkColliders)
@@ -228,16 +236,19 @@ namespace Terraria
 
                 SfmlWindow.Draw(player);
 
+                #endregion
+                #region UI
                 SfmlWindow.SetView(SfmlWindow.DefaultView);
                 SfmlWindow.Draw(fpsText);
 
-                if (UiRenderer.Button(button))
-                    button.SetTexture(UiRenderer.UIAssets["ButtonDown"]);
-                else
-                    button.SetTexture(UiRenderer.UIAssets["ButtonUp"]);
+                //if (UiRenderer.Button(button))
+                //    button.SetTexture(UiRenderer.UIAssets["ButtonDown"]);
+                //else
+                //    button.SetTexture(UiRenderer.UIAssets["ButtonUp"]);
 
+                #endregion
 
-                    SfmlWindow.Display();
+                SfmlWindow.Display();
 
                 frameCount++;
                 if (stopwatch.Elapsed.TotalSeconds >= 1.0)
@@ -304,6 +315,10 @@ namespace Terraria
             SfmlWindow.MouseLeft += (sender, e) =>
             {
                 EventManager.CallEvent(EventManager.EventType.MouseLeft, e);
+            };
+            SfmlWindow.TextEntered += (sender, e) =>
+            {
+                EventManager.CallEvent(EventManager.EventType.Typed, e);
             };
         }
     }

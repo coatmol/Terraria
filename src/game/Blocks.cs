@@ -1,6 +1,7 @@
 ﻿using SFML.Graphics;
 using System.Text.Json;
 using Terraria.utils;
+using ProtoBuf;
 
 namespace Terraria.game
 {
@@ -40,6 +41,8 @@ namespace Terraria.game
                 textureAtlas.Update(blockTexture, (uint)(block.id * Constants.BLOCK_SIZE), 0);
             }
             Console.WriteLine("Initialized blocks!");
+            textureAtlas.Repeated = true;
+            textureAtlas.Smooth = false;
 
             return textureAtlas;
         }
@@ -69,10 +72,12 @@ namespace Terraria.game
         Liquid,
     }
 
+    [ProtoContract]
     public struct Block
     {
         public Block() { }
 
+        [ProtoMember(1)]
         public int id {  get; set; }
         public required string name { get; set; }
         public CollisionType collisionType { get; set; }

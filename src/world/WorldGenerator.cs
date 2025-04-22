@@ -1,4 +1,5 @@
-﻿using SFML.Graphics;
+﻿using ProtoBuf;
+using SFML.Graphics;
 using SFML.System;
 using Terraria.game;
 using Terraria.physics;
@@ -6,40 +7,100 @@ using Terraria.utils;
 
 namespace Terraria.world
 {
+    public struct WorldData
+    {
+        public int seed;
+        public List<Chunk> chunks;
+    }
+
     public class WorldGenerator
     {
+        public WorldData worldData;
         public readonly int Width = Constants.CHUNK_SIZE.X;
         public readonly int Height = Constants.CHUNK_SIZE.Y;
         public readonly float Frequency;
         public readonly float Amplitude;
-        private readonly FastNoiseLite WorldNoise;
-        private readonly FastNoiseLite CaveNoise;
-        public readonly int Seed;
-        public readonly List<Chunk> Chunks = new List<Chunk>();
-        private readonly Texture TileSet;
-        public readonly Shader tileShader;
+        private FastNoiseLite WorldNoise;
+        private FastNoiseLite CaveNoise;
+        private Texture TileSet;
+        public Shader tileShader;
 
         public WorldGenerator(Texture tileset, float frequency, float amplitude, int seed)
         {
             this.Frequency = frequency;
             this.Amplitude = amplitude;
-            this.Seed = seed;
+            this.worldData = new WorldData
+            {
+                seed = seed,
+                chunks = new List<Chunk>()
+            };
+            Init(tileset);
+        }
+        
+        public WorldGenerator(Texture tileset, float frequency, float amplitude, string filePath)
+        {
+            LoadFromFile(filePath);
 
-            this.WorldNoise = new(seed);
+            this.Frequency = frequency;
+            this.Amplitude = amplitude;
+            Init(tileset);
+        }
+
+        private void Init(Texture tileset)
+        {
+            this.WorldNoise = new FastNoiseLite(worldData.seed);
             WorldNoise.SetNoiseType(FastNoiseLite.NoiseType.Cellular);
-            WorldNoise.SetFrequency(frequency);
+            WorldNoise.SetFrequency(this.Frequency);
             WorldNoise.SetFractalType(FastNoiseLite.FractalType.FBm);
             WorldNoise.SetFractalOctaves(15);
-            this.CaveNoise = new(seed);
+
+            this.CaveNoise = new FastNoiseLite(worldData.seed);
             CaveNoise.SetNoiseType(FastNoiseLite.NoiseType.Cellular);
-            CaveNoise.SetFrequency(frequency);
+            CaveNoise.SetFrequency(this.Frequency);
             CaveNoise.SetFractalType(FastNoiseLite.FractalType.FBm);
             CaveNoise.SetFractalOctaves(5);
 
-            if(!Shader.IsAvailable) throw new NotSupportedException("Shaders not supported");
-            tileShader = new Shader(null, null, "assets/shaders/tile-frag.glsl");
+            if (!Shader.IsAvailable)
+                throw new NotSupportedException("Shaders not supported");
 
+            tileShader = new Shader(null, null, "assets/shaders/tile-frag.glsl");
             this.TileSet = tileset;
+        }
+
+        private void BuildTerrain()
+        {
+            for (int x = 0; x < Constants.WORLD_SIZE; x++)
+            {
+                int offset = x * Constants.CHUNK_SIZE.X;
+                Chunk terrain = GenerateLightmap(GenerateCaves(GenerateNoise(offset), offset));
+                Chunk finalChunk = GenerateTerrain(terrain, terrain.ChunkBounds.Left);
+                worldData.chunks.Add(finalChunk);
+            }
+            EventManager.CallEvent(EventManager.EventType.WorldLoaded, worldData);
+            Console.WriteLine("Built terrain!");
+        }
+
+        public void SaveToFile(string filePath)
+        {
+            using (var file = File.Create(filePath))
+            {
+                Serializer.Serialize(file, worldData.chunks);
+                Console.WriteLine($"Successfully saved world to {file.Name}");
+            }
+        }
+
+        public void LoadFromFile(string filePath)
+        {
+            using (var file = File.OpenRead(filePath))
+            {
+                worldData = Serializer.Deserialize<WorldData>(file);
+                foreach (Chunk chunk in worldData.chunks)
+                {
+                    chunk.DeflattenMap();
+                    GenerateLightmap(chunk);
+                    GenerateTerrain(chunk, chunk.ID);
+                }
+            }
         }
 
         public int GetHeight(int x, int offset = 0)
@@ -78,8 +139,8 @@ namespace Terraria.world
             }
 
             Chunk chunk = new(terrain, new IntRect(new Vector2i(offset * Width/(Width/Constants.BLOCK_SIZE), 0), new Vector2i(Width * Constants.BLOCK_SIZE, Height * Constants.BLOCK_SIZE)));
-            chunk.ID = Chunks.Count;
-            Chunks.Add(chunk);
+            chunk.ID = worldData.chunks.Count;
+            worldData.chunks.Add(chunk);
             return chunk;
         }
 
@@ -256,7 +317,7 @@ namespace Terraria.world
             EventManager.CallEvent(EventManager.EventType.TerrainUpdated, chunk.ID);
         }
 
-        public VertexArray GenerateTerrain(Chunk terrain, int offset = 0)
+        public Chunk GenerateTerrain(Chunk chunk, int offset = 0)
         {
             VertexArray vertices = new(PrimitiveType.Quads);
             int tileSetWidth = (int)(TileSet.Size.X / Constants.BLOCK_SIZE);
@@ -265,7 +326,7 @@ namespace Terraria.world
             {
                 for (int y = 0; y < Height; y++)
                 {
-                    Block block = terrain.TerrainMap[x, y];
+                    Block block = chunk.TerrainMap[x, y];
 
                     if (block == Blocks.GetBlock("Air"))
                         continue;
@@ -302,8 +363,8 @@ namespace Terraria.world
                 }
             }
 
-            terrain.Vertices = vertices;
-            return vertices;
+            chunk.Vertices = vertices;
+            return chunk;
         }
         
         public VertexArray GenerateBgWalls()
@@ -396,9 +457,9 @@ namespace Terraria.world
         public Chunk? GetChunkFromPosition(Vector2f pos)
         {
             int chunkId = (int)Math.Floor(pos.X / Constants.BLOCK_SIZE / Constants.CHUNK_SIZE.X);
-            if (chunkId < 0 || chunkId >= Chunks.Count)
+            if (chunkId < 0 || chunkId >= worldData.chunks.Count)
                 return null;
-            Chunk chunk = Chunks[chunkId];
+            Chunk chunk = worldData.chunks[chunkId];
             if (chunk == null)
                 return null;
             return chunk;
@@ -487,19 +548,50 @@ namespace Terraria.world
         }
     }
 
+    [ProtoContract]
     public class Chunk
     {
-        public Block[,] TerrainMap;
-        public VertexArray Vertices;
-        public readonly IntRect ChunkBounds;
+        [ProtoMember(1)]
         public int ID;
         public bool IsDirty = false;
+        [ProtoMember(2)]
+        public Block[] blocks
+        {
+            get { return FlattenMap(); }
+        }
+        public Block[,] TerrainMap;
+        public VertexArray Vertices;
+        [ProtoMember(3)]
+        public readonly IntRect ChunkBounds;
 
         public Chunk(Block[,] terrainMap, IntRect chunkBounds)
         {
             TerrainMap = terrainMap;
             ChunkBounds = chunkBounds;
             Vertices = new VertexArray(PrimitiveType.Quads);
+        }
+
+        public void DeflattenMap()
+        {
+            for (int i = 0; i < blocks.Length; i++)
+            {
+                int x = i / Constants.CHUNK_SIZE.Y;
+                int y = i % Constants.CHUNK_SIZE.Y;
+
+                int id = blocks[i].id;
+                TerrainMap[x, y] = Blocks.GetBlock(id);
+            }
+        }
+
+        public Block[] FlattenMap()
+        {
+            int w = TerrainMap.GetLength(0), h = TerrainMap.GetLength(1);
+            var flat = new Block[w * h];
+            for (int x = 0; x < w; x++)
+                for (int y = 0; y < h; y++)
+                    flat[x * h + y] = TerrainMap[x, y];
+
+            return flat;
         }
 
         public bool IsInView(View cameraView)
