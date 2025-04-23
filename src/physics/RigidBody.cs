@@ -4,7 +4,7 @@ using Terraria.utils;
 
 namespace Terraria.physics
 {
-    class RigidBody : Collider
+    public class RigidBody : Collider
     {
         public Vector2f Velocity;
 

@@ -7,10 +7,12 @@ using Terraria.world;
 
 namespace Terraria.game
 {
-    class PlayerCharacter : RigidBody
+    public class PlayerCharacter : RigidBody
     {
         private float dt;
         public bool isGrounded = true;
+        public bool canFly = false;
+        public bool canCollide = true;
         private bool isFlipped = false;
         private readonly WorldGenerator world;
 
@@ -75,7 +77,7 @@ namespace Terraria.game
                     playerRect = new Collider(playerRect.Position + new Vector2f(moveSign, 0), (Vector2f)playerRect.Size);
                     foreach (var collider in colliders)
                     {
-                        if (playerRect.CheckCollisionAgainstRect(collider))
+                        if (playerRect.CheckCollisionAgainstRect(collider) && canCollide)
                         {
                             Velocity.X = 0;
                             goto ExitX;
@@ -99,7 +101,7 @@ namespace Terraria.game
                     playerRect = new Collider(playerRect.Position + new Vector2f(0, moveSign), (Vector2f)playerRect.Size);
                     foreach (var collider in colliders)
                     {
-                        if (playerRect.CheckCollisionAgainstRect(collider))
+                        if (playerRect.CheckCollisionAgainstRect(collider) && canCollide)
                         {
                             if(Velocity.Y > 0)
                             {
@@ -165,13 +167,25 @@ namespace Terraria.game
                         isFlipped = false;
                     }
                 }
-                if (!Keyboard.IsKeyPressed(Keyboard.Key.A) && !Keyboard.IsKeyPressed(Keyboard.Key.D))
+                if (Keyboard.IsKeyPressed(Keyboard.Key.W) && canFly)
                 {
-                    if(isGrounded)
-                        Velocity.X = Utils.Approach(Velocity.X, 0, DECELERATION * dt);
+                    Velocity.Y = Utils.Approach(Velocity.Y, -MAX_SPEED, ACCELERATION * dt);
+                }
+                if (Keyboard.IsKeyPressed(Keyboard.Key.S) && canFly)
+                {
+                    Velocity.Y = Utils.Approach(Velocity.Y, MAX_SPEED, ACCELERATION * dt);
+                }
+                if (!Keyboard.IsKeyPressed(Keyboard.Key.A) && !Keyboard.IsKeyPressed(Keyboard.Key.D) && isGrounded)
+                {
+                    Velocity.X = Utils.Approach(Velocity.X, 0, DECELERATION * dt);
+                }
+                if (!Keyboard.IsKeyPressed(Keyboard.Key.W) && !Keyboard.IsKeyPressed(Keyboard.Key.S) && canFly)
+                {
+                    Velocity.Y = Utils.Approach(Velocity.Y, 0, DECELERATION * dt);
                 }
             }
-            Velocity.Y = Utils.Approach(Velocity.Y, TERMINAL_VELOCITY, GRAVITY * dt);
+            if(!canFly)
+                Velocity.Y = Utils.Approach(Velocity.Y, TERMINAL_VELOCITY, GRAVITY * dt);
 
             Simulate(colliders);
         }

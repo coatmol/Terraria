@@ -103,11 +103,11 @@ namespace Terraria
             bool Freecam = false;
 
             Sprite BlockSelection = new Sprite(new Texture("assets/sprites/block_select.png")) { Color = new Color(255, 255, 255, 100)};
-            Button button = new(UiRenderer.UIAssets["ButtonUp"], "New World");
-            button.SetBorder(new(4, 4, 4, 4));
-            button.SetSize(new(64, 24));
-            button.Scale = new Vector2f(4, 4);
-
+            Input CommandInput = new Input("Type a command here.");
+            CommandInput.Position = new Vector2f(0, HEIGHT - 50);
+            CommandInput.Scale = new Vector2f(SfmlWindow.Size.X, 50);
+            CommandInput.FillColor = new Color(0, 0, 0, 100);
+            CommandInput.IsDisabled = true;
 
             EventManager.SubcribeToEvent(EventManager.EventType.KeyPressed, (e) =>
             {
@@ -121,15 +121,11 @@ namespace Terraria
                     {
                         Freecam = !Freecam;
                         Console.WriteLine($"Freecam toggled to {Freecam}");
+                    }else if(keyEvent.Code == Keyboard.Key.Slash)
+                    {
+                        CommandInput.IsFocused = true;
+                        CommandInput.IsDisabled = !CommandInput.IsDisabled;
                     }
-                }
-            });
-
-            EventManager.SubcribeToEvent(EventManager.EventType.Typed, (e) =>
-            {
-                if (e.Data is TextEventArgs textEvent)
-                {
-                    Console.WriteLine(textEvent.Unicode);
                 }
             });
 
@@ -241,10 +237,12 @@ namespace Terraria
                 SfmlWindow.SetView(SfmlWindow.DefaultView);
                 SfmlWindow.Draw(fpsText);
 
-                //if (UiRenderer.Button(button))
-                //    button.SetTexture(UiRenderer.UIAssets["ButtonDown"]);
-                //else
-                //    button.SetTexture(UiRenderer.UIAssets["ButtonUp"]);
+                if (UiRenderer.Input(CommandInput))
+                {
+                    Commands.ExecuteCommand(CommandInput.Content, player);
+                    CommandInput.Content = "";
+                    CommandInput.IsDisabled = true;
+                }
 
                 #endregion
 

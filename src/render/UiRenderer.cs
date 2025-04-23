@@ -32,5 +32,12 @@ namespace Terraria.render
 
             return false;
         }
+
+        public static bool Input(Input input)
+        {
+            window.Draw(input);
+
+            return input.Update();
+        }
     }
 }
