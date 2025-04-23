@@ -336,7 +336,7 @@ namespace Terraria.world
 
                     int L = Math.Min(Math.Max(block.lightLevel, 1), Constants.MAX_LIGHT_LEVEL);
                     float fraction = L / (float)Constants.MAX_LIGHT_LEVEL;
-                    byte lightCalc = (byte)(fraction * 255f);
+                    byte lightCalc = block.collisionType == CollisionType.Platform ? (byte)255 : (byte)(fraction * 255f);
                     Color lightColor = new Color(lightCalc, lightCalc, lightCalc, 255);
 
                     Vertex[] quad = new Vertex[4];
@@ -668,20 +668,6 @@ namespace Terraria.world
             return rects;
         }
 
-        public List<Collider> GetColliders()
-        {
-            List<Collider> colliders = new List<Collider>();
-            for (int vert = 0; vert < Vertices.VertexCount; vert += 4)
-            {
-                Vector2f pos = Vertices[(uint)vert].Position;
-                Vector2f size = new Vector2f(Constants.BLOCK_SIZE, Constants.BLOCK_SIZE);
-                IntRect rect = new((Vector2i)pos, (Vector2i)size);
-                Collider collider = new Collider(rect);
-                colliders.Add(collider);
-            }
-            return colliders;
-        }
-
         public List<Collider> GetMergedColliders()
         {
             int tileWidth = ChunkBounds.Width / Constants.BLOCK_SIZE;
@@ -694,11 +680,12 @@ namespace Terraria.world
             {
                 for (int tx = 0; tx < tileWidth; tx++)
                 {
+                    CollisionType type = TerrainMap[tx, ty].collisionType;
                     if (processed[tx, ty] || TerrainMap[tx, ty].collisionType == CollisionType.None)
                         continue;
 
                     int rectWidth = 1;
-                    while (tx + rectWidth < tileWidth && !processed[tx + rectWidth, ty] && TerrainMap[tx + rectWidth, ty].collisionType != CollisionType.None)
+                    while (tx + rectWidth < tileWidth && !processed[tx + rectWidth, ty] && TerrainMap[tx + rectWidth, ty].collisionType == type)
                     {
                         rectWidth++;
                     }
@@ -709,7 +696,7 @@ namespace Terraria.world
                     {
                         for (int i = 0; i < rectWidth; i++)
                         {
-                            if (processed[tx + i, ty + rectHeight] || TerrainMap[tx + i, ty + rectHeight].collisionType == CollisionType.None)
+                            if (processed[tx + i, ty + rectHeight] || TerrainMap[tx + i, ty + rectHeight].collisionType != type)
                             {
                                 done = true;
                                 break;
@@ -732,7 +719,7 @@ namespace Terraria.world
                     int worldWidth = rectWidth * Constants.BLOCK_SIZE;
                     int worldHeight = rectHeight * Constants.BLOCK_SIZE;
 
-                    Collider rect = new Collider(new Vector2f(worldX, worldY), new Vector2f(worldWidth, worldHeight)) { FillColor = Color.Red, OutlineColor = Color.Yellow, OutlineThickness = 3 };
+                    Collider rect = new Collider(new Vector2f(worldX, worldY), new Vector2f(worldWidth, worldHeight), type) { FillColor = Color.Red, OutlineColor = Color.Yellow, OutlineThickness = 3 };
                     colliders.Add(rect);
                 }
             }

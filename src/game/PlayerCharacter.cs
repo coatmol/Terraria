@@ -79,8 +79,13 @@ namespace Terraria.game
                     {
                         if (playerRect.CheckCollisionAgainstRect(collider) && canCollide)
                         {
-                            Velocity.X = 0;
-                            goto ExitX;
+                            if (collider.type == CollisionType.Solid)
+                            {
+                                Velocity.X = 0;
+                                goto ExitX;
+                            } else if (collider.type == CollisionType.Platform)
+                            {
+                            }
                         }
                     }
 
@@ -103,12 +108,26 @@ namespace Terraria.game
                     {
                         if (playerRect.CheckCollisionAgainstRect(collider) && canCollide)
                         {
-                            if(Velocity.Y > 0)
+                            if(collider.type == CollisionType.Solid)
                             {
-                                Velocity.Y = 0;
-                                isGrounded = true;
+                                if(Velocity.Y > 0)
+                                {
+                                    Velocity.Y = 0;
+                                    isGrounded = true;
+                                }
+                                goto ExitY;
+                            } else if(collider.type == CollisionType.Platform)
+                            {
+                                if (Velocity.Y > 0)
+                                {
+                                    if(!Keyboard.IsKeyPressed(Keyboard.Key.S))
+                                    {
+                                        Velocity.Y = 0;
+                                        isGrounded = true;
+                                        goto ExitY;
+                                    }
+                                }
                             }
-                            goto ExitY;
                         }
                     }
 

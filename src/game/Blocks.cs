@@ -69,6 +69,7 @@ namespace Terraria.game
     {
         None,
         Solid,
+        Platform,
         Liquid,
     }
 

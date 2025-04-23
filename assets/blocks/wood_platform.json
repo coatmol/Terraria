@@ -1,0 +1,6 @@
+{
+    "id": 5,
+    "name": "Wood Platform",
+    "collisionType": 2,
+    "isTransparent": true
+}

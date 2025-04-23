@@ -176,7 +176,7 @@ namespace Terraria
                     else if (Mouse.IsButtonPressed(Mouse.Button.Left) && blockSelectionPos != null)
                         world.RemoveBlock((Vector2f)blockSelectionPos * Constants.BLOCK_SIZE);
                     if (Mouse.IsButtonPressed(Mouse.Button.Right))
-                        world.PlaceBlock(MousePos, Blocks.GetBlock("Torch"));
+                        world.PlaceBlock(MousePos, Blocks.GetBlock("Wood Platform"));
                     if (Keyboard.IsKeyPressed(Keyboard.Key.LControl) && Keyboard.IsKeyPressed(Keyboard.Key.S))
                         world.SaveToFile("world.wld");
                 }

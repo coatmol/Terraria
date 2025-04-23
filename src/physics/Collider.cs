@@ -1,21 +1,26 @@
 ﻿using SFML.Graphics;
 using SFML.System;
+using Terraria.game;
 using Terraria.utils;
 
 namespace Terraria.physics
 {
     public class Collider : RectangleShape
     {
-        public Collider(Vector2f pos, Vector2f size)
+        public readonly CollisionType type;
+
+        public Collider(Vector2f pos, Vector2f size, CollisionType cType = CollisionType.Solid)
         {
             Position = pos;
             Size = size;
+            type = cType;
         }
 
-        public Collider(IntRect rect)
+        public Collider(IntRect rect, CollisionType cType = CollisionType.Solid)
         {
             Position = (Vector2f)rect.Position;
             Size = (Vector2f)rect.Size;
+            type = cType;
         }
 
         public IntRect GetBoundingBox()
