@@ -25,6 +25,7 @@
             // Game Events
             WorldLoaded,
             TerrainUpdated,
+            CommandExecuted,
         }
 
         public class Event

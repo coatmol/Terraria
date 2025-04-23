@@ -75,6 +75,8 @@ namespace Terraria
             List<Chunk> chunks = new List<Chunk>();
             VertexArray terrainWalls = world.GenerateBgWalls();
 
+            int blockId = 0;
+
             for (int x = 0; x < Constants.WORLD_SIZE; x++)
             {
                 chunks.Add(world.GenerateLightmap(world.GenerateCaves(world.GenerateNoise(x * Constants.CHUNK_SIZE.X), x * Constants.CHUNK_SIZE.X)));
@@ -129,6 +131,21 @@ namespace Terraria
                 }
             });
 
+            EventManager.SubcribeToEvent(EventManager.EventType.CommandExecuted, (e) =>
+            {
+                if (e.Data is CommandEventArgs cmdEvent)
+                {
+                    if (cmdEvent.command == "place" && cmdEvent.args.Length > 0 && int.TryParse(cmdEvent.args[0], out int parsedBlockId))
+                    {
+                        blockId = parsedBlockId + 1;
+                    }
+                    else
+                    {
+                        Console.WriteLine("Invalid block ID provided.");
+                    }
+                }
+            });
+
             while (SfmlWindow.IsOpen)
             {
                 float deltaTime = clock.Restart().AsSeconds();
@@ -176,7 +193,7 @@ namespace Terraria
                     else if (Mouse.IsButtonPressed(Mouse.Button.Left) && blockSelectionPos != null)
                         world.RemoveBlock((Vector2f)blockSelectionPos * Constants.BLOCK_SIZE);
                     if (Mouse.IsButtonPressed(Mouse.Button.Right))
-                        world.PlaceBlock(MousePos, Blocks.GetBlock("Wood Platform"));
+                        world.PlaceBlock(MousePos, Blocks.GetBlock(blockId));
                     if (Keyboard.IsKeyPressed(Keyboard.Key.LControl) && Keyboard.IsKeyPressed(Keyboard.Key.S))
                         world.SaveToFile("world.wld");
                 }
