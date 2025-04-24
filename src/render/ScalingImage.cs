@@ -3,10 +3,11 @@
 using SFML.Graphics;
 using SFML.System;
 using System.Numerics;
+using Terraria.utils;
 
 namespace Terraria.render
 {
-    public class ScalingImage : Transformable, Drawable
+    public class ScalingImage : UIComponent
     {
         protected Texture texture;
         protected uint left, top, right, bottom, width, height;
@@ -15,6 +16,13 @@ namespace Terraria.render
         public Color color = Color.White;
 
         public ScalingImage(Texture texture)
+            : this(texture, new UDim2(0, 0, texture.Size.X, texture.Size.Y), new UDim2()) { }
+
+        public ScalingImage(Texture texture, UDim2 size)
+            : this(texture, size, new UDim2()) { }
+
+        public ScalingImage(Texture texture, UDim2 size, UDim2 pos)
+            : base(pos, size)
         {
             this.texture = texture;
             this.right = texture.Size.X;
@@ -24,8 +32,10 @@ namespace Terraria.render
             this.vertices = new VertexArray(PrimitiveType.TriangleStrip, 24);
         }
 
-        public void Draw(RenderTarget target, RenderStates states)
+
+        public new void Draw(RenderTarget target, RenderStates states)
         {
+            base.Draw(target, states);
             if(isDirty)
             {
                 UpdateVertices();
@@ -114,8 +124,8 @@ namespace Terraria.render
 
             if(texture != null)
             {
-                uint[] xPos = { 0, left, width - right, width };
-                uint[] yPos = { 0, top, height - bottom, height };
+                uint[] xPos = { 0, left, (uint)(Size.X - right), (uint)Size.X };
+                uint[] yPos = { 0, top, (uint)(Size.Y - bottom), (uint)Size.Y };
                 Vector2f[] vertexPositions = new Vector2f[16];
 
                 uint tWidth = texture.Size.X;

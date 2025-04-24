@@ -5,7 +5,7 @@ using Terraria.utils;
 
 namespace Terraria.render.UI
 {
-    public class Input : Transformable, Drawable
+    public class Input : UIComponent, Drawable
     {
         public string Placeholder;
         public string Content = "";
@@ -16,9 +16,21 @@ namespace Terraria.render.UI
         private bool isEntered = false;
 
         public Input(string placeholder)
+            : this(placeholder, new UDim2(), new UDim2()) { }
+
+        public Input(string placeholder, UDim2 size)
+            : this(placeholder, new UDim2(), size) { }
+
+        public Input(string placeholder, UDim2 pos, UDim2 size)
+            : base(pos, size)
         {
             Placeholder = placeholder;
 
+            InitEvents();
+        }
+
+        private void InitEvents()
+        {
             EventManager.SubcribeToEvent(EventManager.EventType.MouseButtonPressed, (e) =>
             {
                 if (IsDisabled)
@@ -60,7 +72,7 @@ namespace Terraria.render.UI
 
         public RectangleShape GetRect()
         {
-            return new RectangleShape(Scale) { Position = Position, FillColor = FillColor };
+            return new RectangleShape(Size) { Position = Position, FillColor = FillColor };
         }
 
         public Text GetText()
@@ -72,7 +84,7 @@ namespace Terraria.render.UI
             return text;
         }
 
-        public bool Update()
+        public new bool Update()
         {
             if (isEntered)
             {
@@ -82,8 +94,9 @@ namespace Terraria.render.UI
             return false;
         }
 
-        public void Draw(RenderTarget target, RenderStates states)
+        public new void Draw(RenderTarget target, RenderStates states)
         {
+            base.Update();
             if (IsDisabled) return;
             target.Draw(GetRect(), states);
             target.Draw(GetText());

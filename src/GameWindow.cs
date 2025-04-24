@@ -104,12 +104,15 @@ namespace Terraria
             bool DebugMode = false;
             bool Freecam = false;
 
-            Sprite BlockSelection = new Sprite(new Texture("assets/sprites/block_select.png")) { Color = new Color(255, 255, 255, 100)};
-            Input CommandInput = new Input("Type a command here.");
-            CommandInput.Position = new Vector2f(0, HEIGHT - 50);
-            CommandInput.Scale = new Vector2f(SfmlWindow.Size.X, 50);
-            CommandInput.FillColor = new Color(0, 0, 0, 100);
+            Sprite BlockSelection = new Sprite(new Texture("assets/sprites/block_select.png") { Repeated = true, Smooth = false }) { Color = new Color(255, 255, 255, 100)};
+            Input CommandInput = new Input("Type a command here.", new UDim2(0, 1-0.05f, 0, 0), new UDim2(1, 0.05f, 0, 0));
+            CommandInput.FillColor = new Color(0, 0, 0, 150);
             CommandInput.IsDisabled = true;
+
+            Button button = new Button(UiRenderer.UIAssets["ButtonUp"], "Test", new UDim2(0.025f, 0.025f,0,0));
+            button.SetBorder(new(4, 4, 4, 4));
+            button.AspectRatio = 1.5f;
+            
 
             EventManager.SubcribeToEvent(EventManager.EventType.KeyPressed, (e) =>
             {
@@ -259,6 +262,10 @@ namespace Terraria
                     Commands.ExecuteCommand(CommandInput.Content, player);
                     CommandInput.Content = "";
                     CommandInput.IsDisabled = true;
+                }
+                if (UiRenderer.Button(button))
+                {
+                    Console.WriteLine("Down");
                 }
 
                 #endregion

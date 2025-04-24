@@ -8,8 +8,14 @@ namespace Terraria.render.UI
     {
         private Text text;
 
-        public Button(Texture texture, string text) : base(texture)
+        public Button(Texture texture, string text) : this(texture, text, new UDim2(), new UDim2()) { }
+
+        public Button(Texture texture, string text, UDim2 size) : this(texture, text, new UDim2(), size) { }
+
+        public Button(Texture texture, string text, UDim2 pos, UDim2 size) : base(texture)
         {
+            this.PosUDim = pos;
+            this.SizeUDim = size;
             this.text = new Text(text, Constants.MainFont) { FillColor = Color.Black };
             FixText();
             this.SetBorder(new System.Numerics.Vector4(4, 4, 4, 4));
