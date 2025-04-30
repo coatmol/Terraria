@@ -109,11 +109,6 @@ namespace Terraria
             CommandInput.FillColor = new Color(0, 0, 0, 150);
             CommandInput.IsDisabled = true;
 
-            Button button = new Button(UiRenderer.UIAssets["ButtonUp"], "Test", new UDim2(0.025f, 0.025f,0,0));
-            button.SetBorder(new(4, 4, 4, 4));
-            button.AspectRatio = 1.5f;
-            
-
             EventManager.SubcribeToEvent(EventManager.EventType.KeyPressed, (e) =>
             {
                 if (e.Data is KeyEventArgs keyEvent)
@@ -130,6 +125,16 @@ namespace Terraria
                     {
                         CommandInput.IsFocused = true;
                         CommandInput.IsDisabled = !CommandInput.IsDisabled;
+                    }
+                    else if(keyEvent.Code == Keyboard.Key.Escape)
+                    {
+                        if (!CommandInput.IsDisabled)
+                        {
+                            CommandInput.IsDisabled = true;
+                        }else
+                        {
+                            SfmlWindow.Close();
+                        }
                     }
                 }
             });
@@ -187,10 +192,8 @@ namespace Terraria
                         CameraView.Zoom(1.05f);
                     if (Keyboard.IsKeyPressed(Keyboard.Key.Q))
                         CameraView.Zoom(0.9f);
-                    if (Keyboard.IsKeyPressed(Keyboard.Key.Escape))
-                        SfmlWindow.Close();
                     if (Keyboard.IsKeyPressed(Keyboard.Key.LShift))
-                        player.Velocity = new Vector2f();
+                            player.Velocity = new Vector2f();
                     if (Mouse.IsButtonPressed(Mouse.Button.Left) && DebugMode && Freecam)
                         player.Position = MousePos - player.Size / 2;
                     else if (Mouse.IsButtonPressed(Mouse.Button.Left) && blockSelectionPos != null)
@@ -262,10 +265,6 @@ namespace Terraria
                     Commands.ExecuteCommand(CommandInput.Content, player);
                     CommandInput.Content = "";
                     CommandInput.IsDisabled = true;
-                }
-                if (UiRenderer.Button(button))
-                {
-                    Console.WriteLine("Down");
                 }
 
                 #endregion

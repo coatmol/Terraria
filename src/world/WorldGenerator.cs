@@ -334,7 +334,7 @@ namespace Terraria.world
                     int tu = block.id % tileSetWidth;
                     int tv = block.id / tileSetWidth;
 
-                    int L = Math.Min(Math.Max(block.lightLevel, 1), Constants.MAX_LIGHT_LEVEL);
+                    int L = Math.Min(Math.Max(block.lightLevel, Constants.MIN_LIGHT_LEVEL), Constants.MAX_LIGHT_LEVEL);
                     float fraction = L / (float)Constants.MAX_LIGHT_LEVEL;
                     byte lightCalc = block.collisionType == CollisionType.Platform ? (byte)255 : (byte)(fraction * 255f);
                     Color lightColor = new Color(lightCalc, lightCalc, lightCalc, 255);
