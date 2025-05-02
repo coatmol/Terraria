@@ -103,6 +103,7 @@ namespace Terraria
 
             bool DebugMode = false;
             bool Freecam = false;
+            bool SmartBreak = false;
 
             Sprite BlockSelection = new Sprite(new Texture("assets/sprites/block_select.png") { Repeated = true, Smooth = false }) { Color = new Color(255, 255, 255, 100)};
             Input CommandInput = new Input("Type a command here.", new UDim2(0, 1-0.05f, 0, 0), new UDim2(1, 0.05f, 0, 0));
@@ -161,7 +162,8 @@ namespace Terraria
 
                 #region In-World
                 Vector2f? blockSelectionPos = (Vector2f?)world.Raycast(MousePos, player.Position, 6);
-                if(DebugMode && Freecam)
+                BlockSelection.Color = SmartBreak ? new Color(239, 217, 54, 100) : new Color(255, 255, 255, 25);
+                if (DebugMode && Freecam)
                 {
                     CameraView.Center += (MousePos - CameraView.Center) * deltaTime;
                 }
@@ -186,20 +188,29 @@ namespace Terraria
                     }
                 }
                 #region Input
-                if (IsFocused)
+                if (IsFocused && !CommandInput.IsFocused)
                 {
+                    SmartBreak = Keyboard.IsKeyPressed(Keyboard.Key.LControl);
+
                     if (Keyboard.IsKeyPressed(Keyboard.Key.E))
                         CameraView.Zoom(1.05f);
                     if (Keyboard.IsKeyPressed(Keyboard.Key.Q))
                         CameraView.Zoom(0.9f);
+
                     if (Keyboard.IsKeyPressed(Keyboard.Key.LShift))
                             player.Velocity = new Vector2f();
+
                     if (Mouse.IsButtonPressed(Mouse.Button.Left) && DebugMode && Freecam)
                         player.Position = MousePos - player.Size / 2;
+
                     else if (Mouse.IsButtonPressed(Mouse.Button.Left) && blockSelectionPos != null)
-                        world.RemoveBlock((Vector2f)blockSelectionPos * Constants.BLOCK_SIZE);
+                        if (SmartBreak || blockSelectionPos == new Vector2f(
+                                (float)Math.Round(MousePos.X / Constants.BLOCK_SIZE),
+                                (float)Math.Round(MousePos.Y / Constants.BLOCK_SIZE)))
+                            world.RemoveBlock((Vector2f)blockSelectionPos * Constants.BLOCK_SIZE);
+
                     if (Mouse.IsButtonPressed(Mouse.Button.Right))
-                        world.PlaceBlock(MousePos, Blocks.GetBlock(blockId));
+                            world.PlaceBlock(MousePos, Blocks.GetBlock(blockId));
                     if (Keyboard.IsKeyPressed(Keyboard.Key.LControl) && Keyboard.IsKeyPressed(Keyboard.Key.S))
                         world.SaveToFile("world.wld");
                 }
